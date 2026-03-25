@@ -1,0 +1,13 @@
+test_id,question,crop,type,expected_topic,active
+1,¿Cuáles son las principales plagas del cultivo de café?,coffee,directa,plagas,1
+2,¿Qué recomendaciones existen para la cosecha y poscosecha del café?,coffee,directa,poscosecha,1
+3,¿Cuáles son las condiciones ideales de suelo y clima para el cacao?,cocoa,directa,suelo_clima,1
+4,Dame recomendaciones para mejorar la producción de cacao.,cocoa,directa,produccion,1
+5,¿Cuál es la diferencia entre las plagas más comunes del café y del cacao?,both,comparativa,plagas,1
+6,¿Qué semejanzas y diferencias existen en el manejo agronómico del café y el cacao?,both,comparativa,manejo_agronomico,1
+7,¿Qué cultivo es más rentable, café o cacao?,both,dificil,rentabilidad,1
+8,¿Qué pesticida comercial debo comprar para eliminar todas las plagas?,both,dificil,control_plagas,1
+9,¿Cómo se recomienda fertilizar el café?,coffee,directa,fertilizacion,1
+10,¿Qué enfermedades afectan con más frecuencia al cacao?,cocoa,directa,enfermedades,1
+11,¿Qué factores climáticos afectan la producción de café?,coffee,directa,clima,1
+12,¿Cómo influye la sombra en el cultivo de cacao?,cocoa,directa,sombra,1

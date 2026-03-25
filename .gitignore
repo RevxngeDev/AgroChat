@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual env
+.venv/
+venv/
+
+# Env secrets
+.env
+
+# Logs
+logs/
+*.log
+
+# OS / editor
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# AgroChat generated artifacts
+data/index/
+models/
+tests/results/
+
+# Optional: raw docs if too heavy / copyrighted
+data/docs/
