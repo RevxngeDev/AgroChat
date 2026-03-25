@@ -4,7 +4,7 @@ Uses the same RAG pipeline as rag_cli.py, but reads questions from CSV
 and saves outputs to CSV + JSONL for later analysis in Excel.
 
 Usage:
-    python -m src.run_eval --version v0.1
+    python -m tests.run_eval --version v0.1
 """
 
 import argparse
@@ -49,6 +49,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--lang", choices=["es", "ru"], default=config.DEFAULT_LANG, help="Response language")
     parser.add_argument("--model", default=config.LLM_MODEL, help="Groq model name")
     parser.add_argument("--top-k", type=int, default=config.TOP_K, help="Number of chunks to retrieve")
+    parser.add_argument("--delay", type=float, default=2.5, help="Delay in seconds between questions")
+    parser.add_argument("--max-retries", type=int, default=3, help="Max retries for temporary API errors")
     return parser.parse_args()
 
 
@@ -137,6 +139,55 @@ def write_jsonl(path: Path, rows: list[dict]) -> None:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
+def is_retryable_error(error: Exception) -> bool:
+    """Return True if the exception looks temporary and worth retrying."""
+    msg = str(error).lower()
+    retry_signals = [
+        "429",
+        "rate limit",
+        "rate_limit",
+        "timed out",
+        "timeout",
+        "request timed out",
+        "connection error",
+        "temporarily unavailable",
+    ]
+    return any(signal in msg for signal in retry_signals)
+
+
+def get_completion_with_retry(
+    system_prompt: str,
+    user_prompt: str,
+    model: str,
+    max_retries: int,
+    logger: logging.Logger,
+) -> str:
+    """
+    Call the LLM with retries for temporary errors like 429 or timeouts.
+    """
+    last_error = None
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            return get_completion(system_prompt, user_prompt, model=model)
+        except Exception as e:
+            last_error = e
+            if not is_retryable_error(e) or attempt == max_retries:
+                raise
+
+            wait_seconds = min(2 * attempt, 8)
+            logger.warning(
+                "Temporary error calling LLM (attempt %d/%d): %s. Retrying in %.1fs",
+                attempt,
+                max_retries,
+                e,
+                wait_seconds,
+            )
+            time.sleep(wait_seconds)
+
+    raise last_error
+
+
 def main() -> None:
     setup_logging()
     logger = logging.getLogger("run_eval")
@@ -163,6 +214,8 @@ def main() -> None:
     console.print(f"Idioma    : {args.lang}")
     console.print(f"Modelo    : {args.model}")
     console.print(f"Top-K     : {args.top_k}")
+    console.print(f"Delay     : {args.delay}s")
+    console.print(f"Retries   : {args.max_retries}")
     console.print()
 
     try:
@@ -222,10 +275,17 @@ def main() -> None:
                 }
                 csv_rows.append(csv_row)
                 jsonl_rows.append(csv_row)
+                time.sleep(args.delay)
                 continue
 
             system_prompt, user_prompt = build_prompt(question, chunks, lang=args.lang)
-            answer = get_completion(system_prompt, user_prompt, model=args.model)
+            answer = get_completion_with_retry(
+                system_prompt,
+                user_prompt,
+                model=args.model,
+                max_retries=args.max_retries,
+                logger=logger,
+            )
             rag_resp = build_response(answer, chunks, question, args.model, args.lang)
 
             elapsed = time.time() - start
@@ -266,6 +326,7 @@ def main() -> None:
             csv_rows.append(csv_row)
             jsonl_rows.append(jsonl_row)
             logger.info("Test %s completed in %.2fs", test_id, elapsed)
+            time.sleep(args.delay)
 
         except Exception as e:
             logger.exception("Test %s failed", test_id)
@@ -299,6 +360,7 @@ def main() -> None:
 
             csv_rows.append(csv_row)
             jsonl_rows.append(csv_row)
+            time.sleep(args.delay)
 
     write_csv(csv_path, csv_rows)
     write_jsonl(jsonl_path, jsonl_rows)
