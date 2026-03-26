@@ -19,6 +19,7 @@ LOG_DIR: Path = _PROJECT_ROOT / os.getenv("LOG_DIR", "logs")
 # --- LLM ---
 GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
 LLM_MODEL: str = os.getenv("LLM_MODEL", "llama-3.1-8b-instant")
+ADMIN_API_KEY: str = os.getenv("ADMIN_API_KEY", "")
 
 # --- Embeddings ---
 EMBEDDING_MODEL: str = os.getenv(

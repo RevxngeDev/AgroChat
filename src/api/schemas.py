@@ -47,3 +47,43 @@ class IndexStatusResponse(BaseModel):
     docs_dir: str
     log_dir: str
     index_exists: bool
+
+
+class ReindexResponse(BaseModel):
+    ok: bool
+    message: str
+    docs_loaded: int
+    index_dir: str
+
+
+class DocumentItem(BaseModel):
+    file_name: str
+    crop_folder: str
+    crop_label: str
+    relative_path: str
+    size_bytes: int
+
+
+class CropMetricItem(BaseModel):
+    crop_folder: str
+    crop_label: str
+    pdf_count: int
+
+
+class BasicMetricsResponse(BaseModel):
+    name: str
+    index_loaded: bool
+    index_exists: bool
+    total_crops: int
+    total_pdfs: int
+    crops: list[CropMetricItem]
+
+
+class UploadDocumentResponse(BaseModel):
+    ok: bool
+    message: str
+    file_name: str
+    crop_folder: str
+    crop_label: str
+    relative_path: str
+    size_bytes: int

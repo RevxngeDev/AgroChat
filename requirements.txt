@@ -25,3 +25,4 @@ pytest==8.3.4
 # API
 fastapi
 uvicorn[standard]
+python-multipart
