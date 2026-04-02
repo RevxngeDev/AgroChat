@@ -61,6 +61,10 @@ LANGUAGES: dict[str, dict] = {
         "bot_voice_transcribed_as": "Transcripción detectada:",
         "bot_voice_empty": "No pude obtener una transcripción útil del audio.",
         "bot_voice_error": "Ocurrió un error procesando el mensaje de voz: {error}",
+        "bot_voice_reply_enabled": "Listo. A partir de ahora intentaré responderte también con mensaje de voz.",
+        "bot_voice_reply_disabled": "Listo. A partir de ahora te responderé solo en texto.",
+        "bot_voice_reply_generating": "Estoy generando la respuesta en audio...",
+        "bot_voice_reply_error": "No pude generar la respuesta en voz: {error}",
     },
     "en": {
         "language_name": "English",
@@ -124,6 +128,10 @@ LANGUAGES: dict[str, dict] = {
         "bot_voice_transcribed_as": "Detected transcription:",
         "bot_voice_empty": "I could not obtain a useful transcription from the audio.",
         "bot_voice_error": "An error occurred while processing the voice message: {error}",
+        "bot_voice_reply_enabled": "Done. From now on I will also try to reply with voice messages.",
+        "bot_voice_reply_disabled": "Done. From now on I will reply only in text.",
+        "bot_voice_reply_generating": "Estoy generando la respuesta en audio...",
+        "bot_voice_reply_error": "No pude generar la respuesta en voz: {error}",
     },
     "ru": {
         "language_name": "русский",
@@ -187,6 +195,10 @@ LANGUAGES: dict[str, dict] = {
         "bot_voice_transcribed_as": "Распознанная расшифровка:",
         "bot_voice_empty": "Не удалось получить полезную расшифровку аудио.",
         "bot_voice_error": "Произошла ошибка при обработке голосового сообщения: {error}",
+        "bot_voice_reply_enabled": "Готово. Теперь я также буду стараться отвечать голосовыми сообщениями.",
+        "bot_voice_reply_disabled": "Готово. Теперь я буду отвечать только текстом.",
+        "bot_voice_reply_generating": "Я генерирую голосовой ответ...",
+        "bot_voice_reply_error": "Не удалось создать голосовой ответ: {error}",
     },
 }
 

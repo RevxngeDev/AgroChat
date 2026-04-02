@@ -24,6 +24,10 @@ ADMIN_API_KEY: str = os.getenv("ADMIN_API_KEY", "")
 TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
 API_BASE_URL: str = os.getenv("AGROCHAT_API_BASE_URL", "http://127.0.0.1:8000")
 GROQ_STT_MODEL: str = os.getenv("GROQ_STT_MODEL", "whisper-large-v3-turbo")
+EDGE_TTS_VOICE_ES: str = os.getenv("EDGE_TTS_VOICE_ES", "es-CO-SalomeNeural")
+EDGE_TTS_VOICE_EN: str = os.getenv("EDGE_TTS_VOICE_EN", "en-US-AriaNeural")
+EDGE_TTS_VOICE_RU: str = os.getenv("EDGE_TTS_VOICE_RU", "ru-RU-SvetlanaNeural")
+TEMP_TTS_DIR: Path = _PROJECT_ROOT / os.getenv("TEMP_TTS_DIR", "temp/tts")
 
 # --- Embeddings ---
 EMBEDDING_MODEL: str = os.getenv(

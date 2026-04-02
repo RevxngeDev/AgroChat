@@ -30,3 +30,5 @@ python-multipart
 # Telegram
 python-telegram-bot
 httpx
+
+edge-tts

@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import os
 from pathlib import Path
 from uuid import uuid4
 from typing import Any
@@ -21,6 +20,7 @@ from telegram.ext import (
 from src import config
 from src.languages import get_lang_pack, get_supported_languages
 from src.speech_to_text import transcribe_audio_file
+from src.text_to_speech import synthesize_speech_to_file_async
 
 logging.basicConfig(
     level=logging.INFO,
@@ -29,6 +29,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 USER_LANGS: dict[int, str] = {}
+USER_VOICE_REPLY: dict[int, bool] = {}
 
 LANGUAGE_LABELS = {
     "es": "Español 🇪🇸",
@@ -41,6 +42,12 @@ def get_user_lang(user_id: int | None) -> str:
     if user_id is None:
         return config.DEFAULT_LANG
     return USER_LANGS.get(user_id, config.DEFAULT_LANG)
+
+
+def get_user_voice_reply_enabled(user_id: int | None) -> bool:
+    if user_id is None:
+        return False
+    return USER_VOICE_REPLY.get(user_id, False)
 
 
 async def call_agrochat_api(question: str, lang: str) -> dict[str, Any]:
@@ -125,6 +132,28 @@ async def language_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     await show_language_selector(update)
 
 
+async def voice_on_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id if update.effective_user else None
+    lang = get_user_lang(user_id)
+    lang_pack = get_lang_pack(lang)
+
+    if user_id is not None:
+        USER_VOICE_REPLY[user_id] = True
+
+    await safe_reply_text(update, lang_pack["bot_voice_reply_enabled"])
+
+
+async def voice_off_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id if update.effective_user else None
+    lang = get_user_lang(user_id)
+    lang_pack = get_lang_pack(lang)
+
+    if user_id is not None:
+        USER_VOICE_REPLY[user_id] = False
+
+    await safe_reply_text(update, lang_pack["bot_voice_reply_disabled"])
+
+
 async def set_language_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if not query:
@@ -176,7 +205,7 @@ def _format_sources(sources: list[dict[str, Any]], lang_pack: dict) -> str:
     return f"\n\n{lang_pack['bot_main_sources']}\n" + "\n".join(formatted)
 
 
-async def _run_text_query(update: Update, question: str, lang: str) -> None:
+async def _run_text_query(update: Update, question: str, lang: str) -> str:
     lang_pack = get_lang_pack(lang)
 
     data = await call_agrochat_api(question, lang=lang)
@@ -184,7 +213,40 @@ async def _run_text_query(update: Update, question: str, lang: str) -> None:
     sources = data.get("sources", [])
     extra = _format_sources(sources, lang_pack)
 
-    await safe_reply_text(update, answer + extra)
+    final_text = answer + extra
+    await safe_reply_text(update, final_text)
+    return final_text
+
+
+async def _send_voice_reply(update: Update, text: str, lang: str) -> None:
+    lang_pack = get_lang_pack(lang)
+    temp_voice_path: Path | None = None
+
+    try:
+        await safe_reply_text(update, lang_pack["bot_voice_reply_generating"])
+
+        config.TEMP_TTS_DIR.mkdir(parents=True, exist_ok=True)
+        temp_voice_path = config.TEMP_TTS_DIR / f"{uuid4()}.mp3"
+
+        await synthesize_speech_to_file_async(
+            text=text,
+            output_path=temp_voice_path,
+            lang=lang,
+        )
+
+        if update.message:
+            with temp_voice_path.open("rb") as audio_file:
+                await update.message.reply_voice(voice=audio_file)
+
+    except Exception as e:
+        logger.exception("Voice reply generation error")
+        await safe_reply_text(update, lang_pack["bot_voice_reply_error"].format(error=e))
+    finally:
+        if temp_voice_path and temp_voice_path.exists():
+            try:
+                temp_voice_path.unlink()
+            except OSError:
+                logger.warning("Could not delete temp TTS file: %s", temp_voice_path)
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -200,7 +262,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     try:
         await safe_send_chat_action(update, context)
-        await _run_text_query(update, question, lang)
+        final_text = await _run_text_query(update, question, lang)
+
+        if get_user_voice_reply_enabled(user_id):
+            await _send_voice_reply(update, final_text, lang)
+
     except httpx.HTTPStatusError as e:
         lang_pack = get_lang_pack(lang)
         logger.exception("API HTTP error")
@@ -238,13 +304,13 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
             await safe_reply_text(update, lang_pack["bot_voice_empty"])
             return
 
-        await safe_reply_text(
-            update,
-            f"{lang_pack['bot_voice_transcribed_as']}\n{transcript}",
-        )
+        await safe_reply_text(update, f"{lang_pack['bot_voice_transcribed_as']}\n{transcript}")
 
         await safe_send_chat_action(update, context)
-        await _run_text_query(update, transcript, lang)
+        final_text = await _run_text_query(update, transcript, lang)
+
+        if get_user_voice_reply_enabled(user_id):
+            await _send_voice_reply(update, final_text, lang)
 
     except httpx.HTTPStatusError as e:
         logger.exception("API HTTP error after voice transcription")
@@ -285,6 +351,8 @@ def main() -> None:
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("language", language_command))
+    application.add_handler(CommandHandler("voice_on", voice_on_command))
+    application.add_handler(CommandHandler("voice_off", voice_off_command))
     application.add_handler(CallbackQueryHandler(set_language_callback, pattern=r"^setlang:"))
     application.add_handler(MessageHandler(filters.VOICE, handle_voice_message))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
