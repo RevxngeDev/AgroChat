@@ -5,7 +5,7 @@ from typing import Any
 import httpx
 from telegram import Update
 from telegram.constants import ChatAction
-from telegram.error import TimedOut, NetworkError
+from telegram.error import NetworkError, TimedOut
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -15,6 +15,7 @@ from telegram.ext import (
 )
 
 from src import config
+from src.languages import get_lang_pack
 
 logging.basicConfig(
     level=logging.INFO,
@@ -22,12 +23,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+BOT_LANG = "es"
+
 
 async def call_agrochat_api(question: str) -> dict[str, Any]:
     url = f"{config.API_BASE_URL}/query"
     payload = {
         "question": question,
-        "lang": "es",
+        "lang": BOT_LANG,
         "top_k": config.TOP_K,
     }
 
@@ -40,9 +43,6 @@ async def call_agrochat_api(question: str) -> dict[str, Any]:
 
 
 async def safe_send_chat_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """
-    Try to send typing action, but don't fail the whole handler if Telegram times out.
-    """
     try:
         await context.bot.send_chat_action(
             chat_id=update.effective_chat.id,
@@ -57,9 +57,6 @@ async def safe_reply_text(
     text: str,
     max_retries: int = 3,
 ) -> None:
-    """
-    Send Telegram message with retries for temporary Telegram timeouts.
-    """
     last_error = None
 
     for attempt in range(1, max_retries + 1):
@@ -84,32 +81,20 @@ async def safe_reply_text(
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    text = (
-        "Hola, soy AgroChat 🌱\n\n"
-        "Puedo ayudarte con consultas técnicas sobre cultivos agrícolas.\n"
-        "Por ahora estoy trabajando principalmente con café y cacao.\n\n"
-        "Escríbeme una pregunta, por ejemplo:\n"
-        "¿Cómo se recomienda fertilizar el café?"
-    )
-    await safe_reply_text(update, text)
+    lang_pack = get_lang_pack(BOT_LANG)
+    await safe_reply_text(update, lang_pack["bot_welcome"])
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    text = (
-        "Puedes hacerme preguntas técnicas como:\n"
-        "- ¿Qué enfermedades afectan al cacao?\n"
-        "- ¿Cómo se recomienda fertilizar el café?\n"
-        "- ¿Cómo influye la sombra en el cacao?\n\n"
-        "Comandos disponibles:\n"
-        "/start\n"
-        "/help"
-    )
-    await safe_reply_text(update, text)
+    lang_pack = get_lang_pack(BOT_LANG)
+    await safe_reply_text(update, lang_pack["bot_help"])
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message or not update.message.text:
         return
+
+    lang_pack = get_lang_pack(BOT_LANG)
 
     question = update.message.text.strip()
     if not question:
@@ -129,7 +114,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             formatted = []
             for s in top_sources:
                 formatted.append(f"- {s.get('file', 'desconocido')} (pág. {s.get('page', '?')})")
-            extra = "\n\nFuentes principales:\n" + "\n".join(formatted)
+            extra = f"\n\n{lang_pack['bot_main_sources']}\n" + "\n".join(formatted)
 
         await safe_reply_text(update, answer + extra)
 
@@ -137,13 +122,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         logger.exception("API HTTP error")
         await safe_reply_text(
             update,
-            f"Error consultando AgroChat API: {e.response.status_code}. Intenta de nuevo en un momento."
+            lang_pack["bot_api_error"].format(status_code=e.response.status_code),
         )
     except Exception as e:
         logger.exception("Unexpected bot error")
         await safe_reply_text(
             update,
-            f"Ocurrió un error procesando tu consulta: {e}"
+            lang_pack["bot_unexpected_error"].format(error=e),
         )
 
 

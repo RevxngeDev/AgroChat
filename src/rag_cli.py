@@ -3,8 +3,8 @@ AgroChat MVP — RAG CLI (online pipeline).
 Interactive command-line interface for querying the agricultural knowledge base.
 
 Usage:
-    python -m src.rag_cli                          # defaults: es, llama-3.1-8b-instant
-    python -m src.rag_cli --lang ru                # Russian output
+    python -m src.rag_cli
+    python -m src.rag_cli --lang ru
     python -m src.rag_cli --model llama-3.3-70b-versatile --top-k 3
 """
 
@@ -13,17 +13,17 @@ import logging
 import time
 
 from rich.console import Console
-from rich.logging import RichHandler
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.table import Table
 
 from src import config
 from src.indexer import load_index
-from src.retriever import retrieve
+from src.languages import get_lang_pack, get_supported_languages
 from src.prompt_builder import build_prompt
-from src.llm_client import get_completion
 from src.response_builder import build_response
+from src.retriever import retrieve
+from src.llm_client import get_completion
 
 console = Console()
 
@@ -41,33 +41,37 @@ def setup_logging() -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="AgroChat — Agricultural RAG CLI")
-    parser.add_argument("--lang", choices=["es", "ru"], default=config.DEFAULT_LANG,
-                        help="Response language (default: es)")
-    parser.add_argument("--model", default=config.LLM_MODEL,
-                        help="Groq model name")
-    parser.add_argument("--top-k", type=int, default=config.TOP_K,
-                        help="Number of chunks to retrieve")
+    parser.add_argument(
+        "--lang",
+        choices=get_supported_languages(),
+        default=config.DEFAULT_LANG,
+        help=f"Response language (default: {config.DEFAULT_LANG})",
+    )
+    parser.add_argument("--model", default=config.LLM_MODEL, help="Groq model name")
+    parser.add_argument("--top-k", type=int, default=config.TOP_K, help="Number of chunks to retrieve")
     return parser.parse_args()
 
 
-def display_response(rag_resp, elapsed: float) -> None:
+def display_response(rag_resp, elapsed: float, lang: str) -> None:
     """Render the RAG response with rich formatting."""
-    # Answer panel
-    console.print()
-    console.print(Panel(
-        Markdown(rag_resp.answer),
-        title="[bold green]AgroChat — Respuesta[/bold green]",
-        border_style="green",
-        padding=(1, 2),
-    ))
+    lang_pack = get_lang_pack(lang)
 
-    # Sources table
+    console.print()
+    console.print(
+        Panel(
+            Markdown(rag_resp.answer),
+            title=f"[bold green]{lang_pack['cli_answer_title']}[/bold green]",
+            border_style="green",
+            padding=(1, 2),
+        )
+    )
+
     if rag_resp.sources:
-        table = Table(title="Fuentes consultadas", show_lines=False)
-        table.add_column("Archivo", style="cyan")
-        table.add_column("Cultivo", style="yellow")
-        table.add_column("Página", justify="center")
-        table.add_column("Score", justify="right", style="dim")
+        table = Table(title=lang_pack["cli_sources_title"], show_lines=False)
+        table.add_column(lang_pack["cli_column_file"], style="cyan")
+        table.add_column(lang_pack["cli_column_crop"], style="yellow")
+        table.add_column(lang_pack["cli_column_page"], justify="center")
+        table.add_column(lang_pack["cli_column_score"], justify="right", style="dim")
 
         for src in rag_resp.sources:
             table.add_row(
@@ -78,7 +82,6 @@ def display_response(rag_resp, elapsed: float) -> None:
             )
         console.print(table)
 
-    # Timing info
     console.print(f"  [dim]Model: {rag_resp.model} | Lang: {rag_resp.lang} | Time: {elapsed:.1f}s[/dim]\n")
 
 
@@ -86,29 +89,27 @@ def main() -> None:
     setup_logging()
     logger = logging.getLogger("rag_cli")
     args = parse_args()
+    lang_pack = get_lang_pack(args.lang)
 
-    # Validate
     warnings = config.validate()
     for w in warnings:
         console.print(f"[yellow]Warning:[/yellow] {w}")
     if any("GROQ_API_KEY" in w for w in warnings):
         return
 
-    console.rule("[bold green]AgroChat — Asistente Agrícola Inteligente[/bold green]")
+    console.rule(f"[bold green]{lang_pack['cli_title']}[/bold green]")
     console.print(f"  Idioma: {args.lang} | Modelo: {args.model} | Top-K: {args.top_k}")
-    console.print("  Escribe tu pregunta (o 'salir' para terminar).\n")
+    console.print(f"  {lang_pack['cli_exit_hint']}\n")
 
-    # Load index once
     try:
         index = load_index()
     except FileNotFoundError as e:
         console.print(f"[red]{e}[/red]")
         return
 
-    # Interactive loop
     while True:
         try:
-            query = console.input("[bold cyan]Pregunta:[/bold cyan] ").strip()
+            query = console.input(f"[bold cyan]{lang_pack['cli_question_label']}[/bold cyan] ").strip()
         except (KeyboardInterrupt, EOFError):
             break
 
@@ -117,12 +118,11 @@ def main() -> None:
 
         start = time.time()
 
-        # RAG pipeline
         logger.info("Query: %s", query)
         chunks = retrieve(index, query, top_k=args.top_k)
 
         if not chunks:
-            console.print("[yellow]No se encontraron fragmentos relevantes.[/yellow]\n")
+            console.print(f"[yellow]{lang_pack['no_relevant_chunks']}[/yellow]\n")
             continue
 
         system_prompt, user_prompt = build_prompt(query, chunks, lang=args.lang)
@@ -130,7 +130,7 @@ def main() -> None:
         rag_resp = build_response(answer, chunks, query, args.model, args.lang)
 
         elapsed = time.time() - start
-        display_response(rag_resp, elapsed)
+        display_response(rag_resp, elapsed, args.lang)
         logger.info("Response delivered in %.1fs", elapsed)
 
 
