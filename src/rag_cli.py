@@ -1,16 +1,10 @@
 """
 AgroChat MVP — RAG CLI (online pipeline).
 Interactive command-line interface for querying the agricultural knowledge base.
-
-Usage:
-    python -m src.rag_cli
-    python -m src.rag_cli --lang ru
-    python -m src.rag_cli --model llama-3.3-70b-versatile --top-k 3
 """
 
 import argparse
 import logging
-import time
 
 from rich.console import Console
 from rich.markdown import Markdown
@@ -20,10 +14,7 @@ from rich.table import Table
 from src import config
 from src.indexer import load_index
 from src.languages import get_lang_pack, get_supported_languages
-from src.prompt_builder import build_prompt
-from src.response_builder import build_response
-from src.retriever import retrieve
-from src.llm_client import get_completion
+from src.services.query_service import run_query
 
 console = Console()
 
@@ -52,28 +43,27 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def display_response(rag_resp, elapsed: float, lang: str) -> None:
-    """Render the RAG response with rich formatting."""
+def display_response(result, lang: str) -> None:
     lang_pack = get_lang_pack(lang)
 
     console.print()
     console.print(
         Panel(
-            Markdown(rag_resp.answer),
+            Markdown(result.answer),
             title=f"[bold green]{lang_pack['cli_answer_title']}[/bold green]",
             border_style="green",
             padding=(1, 2),
         )
     )
 
-    if rag_resp.sources:
+    if result.sources:
         table = Table(title=lang_pack["cli_sources_title"], show_lines=False)
         table.add_column(lang_pack["cli_column_file"], style="cyan")
         table.add_column(lang_pack["cli_column_crop"], style="yellow")
         table.add_column(lang_pack["cli_column_page"], justify="center")
         table.add_column(lang_pack["cli_column_score"], justify="right", style="dim")
 
-        for src in rag_resp.sources:
+        for src in result.sources:
             table.add_row(
                 src["file"],
                 src["crop"],
@@ -82,7 +72,7 @@ def display_response(rag_resp, elapsed: float, lang: str) -> None:
             )
         console.print(table)
 
-    console.print(f"  [dim]Model: {rag_resp.model} | Lang: {rag_resp.lang} | Time: {elapsed:.1f}s[/dim]\n")
+    console.print(f"  [dim]Model: {result.model} | Lang: {result.lang} | Time: {result.elapsed_sec:.1f}s[/dim]\n")
 
 
 def main() -> None:
@@ -116,22 +106,18 @@ def main() -> None:
         if not query or query.lower() in ("salir", "exit", "quit"):
             break
 
-        start = time.time()
+        logger.info("Original query: %s", query)
 
-        logger.info("Query: %s", query)
-        chunks = retrieve(index, query, top_k=args.top_k)
+        result = run_query(
+            index=index,
+            question=query,
+            lang=args.lang,
+            model=args.model,
+            top_k=args.top_k,
+        )
 
-        if not chunks:
-            console.print(f"[yellow]{lang_pack['no_relevant_chunks']}[/yellow]\n")
-            continue
-
-        system_prompt, user_prompt = build_prompt(query, chunks, lang=args.lang)
-        answer = get_completion(system_prompt, user_prompt, model=args.model)
-        rag_resp = build_response(answer, chunks, query, args.model, args.lang)
-
-        elapsed = time.time() - start
-        display_response(rag_resp, elapsed, args.lang)
-        logger.info("Response delivered in %.1fs", elapsed)
+        logger.info("Retrieval query: %s", result.retrieval_query)
+        display_response(result, args.lang)
 
 
 if __name__ == "__main__":

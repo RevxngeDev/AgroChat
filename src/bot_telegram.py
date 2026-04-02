@@ -194,12 +194,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             top_sources = sources[:2]
             formatted = []
             for s in top_sources:
-                if lang == "en":
-                    formatted.append(f"- {s.get('file', 'unknown')} (p. {s.get('page', '?')})")
-                elif lang == "ru":
-                    formatted.append(f"- {s.get('file', 'неизвестно')} (стр. {s.get('page', '?')})")
-                else:
-                    formatted.append(f"- {s.get('file', 'desconocido')} (pág. {s.get('page', '?')})")
+                formatted.append(
+                    f"- {s.get('file', lang_pack['bot_unknown_file'])} "
+                    f"({lang_pack['bot_page_abbrev']} {s.get('page', '?')})"
+                )
             extra = f"\n\n{lang_pack['bot_main_sources']}\n" + "\n".join(formatted)
 
         await safe_reply_text(update, answer + extra)

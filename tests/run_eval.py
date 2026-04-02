@@ -25,6 +25,7 @@ from src.retriever import retrieve
 from src.prompt_builder import build_prompt
 from src.llm_client import get_completion
 from src.response_builder import build_response
+from src.query_normalizer import normalize_query_for_retrieval
 
 console = Console()
 
@@ -243,7 +244,8 @@ def main() -> None:
 
             logger.info("Test %s | Query: %s", test_id, question)
 
-            chunks = retrieve(index, question, top_k=args.top_k)
+            retrieval_query = normalize_query_for_retrieval(question, args.lang)
+            chunks = retrieve(index, retrieval_query, top_k=args.top_k)
 
             if not chunks:
                 elapsed = time.time() - start

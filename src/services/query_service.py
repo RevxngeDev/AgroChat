@@ -5,6 +5,7 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
+from src.query_normalizer import normalize_query_for_retrieval
 from src.retriever import retrieve
 from src.prompt_builder import build_prompt
 from src.llm_client import get_completion
@@ -21,10 +22,10 @@ class QueryServiceResult:
     lang: str
     elapsed_sec: float
     chunks_found: int
+    retrieval_query: str
 
 
 def _is_retryable_error(error: Exception) -> bool:
-    """Return True if the exception looks temporary and worth retrying."""
     msg = str(error).lower()
     retry_signals = [
         "429",
@@ -46,9 +47,6 @@ def _get_completion_with_retry(
     model: str,
     max_retries: int = 3,
 ) -> str:
-    """
-    Call Groq with retries for temporary errors like timeout/rate limit.
-    """
     last_error = None
 
     for attempt in range(1, max_retries + 1):
@@ -83,10 +81,15 @@ def run_query(
 ) -> QueryServiceResult:
     """
     Reusable AgroChat query pipeline for CLI/API.
+
+    Retrieval is performed with a normalized Spanish query when needed,
+    but the final response remains in the user's selected language.
     """
     start = time.time()
 
-    chunks = retrieve(index, question, top_k=top_k)
+    retrieval_query = normalize_query_for_retrieval(question, lang)
+    chunks = retrieve(index, retrieval_query, top_k=top_k)
+
     if not chunks:
         elapsed = time.time() - start
         return QueryServiceResult(
@@ -96,6 +99,7 @@ def run_query(
             lang=lang,
             elapsed_sec=round(elapsed, 2),
             chunks_found=0,
+            retrieval_query=retrieval_query,
         )
 
     system_prompt, user_prompt = build_prompt(question, chunks, lang=lang)
@@ -116,4 +120,5 @@ def run_query(
         lang=rag_resp.lang,
         elapsed_sec=round(elapsed, 2),
         chunks_found=len(chunks),
+        retrieval_query=retrieval_query,
     )
