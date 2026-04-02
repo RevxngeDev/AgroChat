@@ -3,11 +3,12 @@ import logging
 from typing import Any
 
 import httpx
-from telegram import Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ChatAction
 from telegram.error import NetworkError, TimedOut
 from telegram.ext import (
     Application,
+    CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
     MessageHandler,
@@ -15,7 +16,7 @@ from telegram.ext import (
 )
 
 from src import config
-from src.languages import get_lang_pack
+from src.languages import get_lang_pack, get_supported_languages
 
 logging.basicConfig(
     level=logging.INFO,
@@ -23,14 +24,29 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-BOT_LANG = "es"
+# Idioma por usuario (memoria temporal mientras el bot está corriendo)
+USER_LANGS: dict[int, str] = {}
+
+# Etiquetas visibles para los botones
+LANGUAGE_LABELS = {
+    "es": "Español 🇪🇸",
+    "en": "English 🇬🇧",
+    "ru": "Русский 🇷🇺",
+}
 
 
-async def call_agrochat_api(question: str) -> dict[str, Any]:
+def get_user_lang(user_id: int | None) -> str:
+    """Return user-selected language or default language."""
+    if user_id is None:
+        return config.DEFAULT_LANG
+    return USER_LANGS.get(user_id, config.DEFAULT_LANG)
+
+
+async def call_agrochat_api(question: str, lang: str) -> dict[str, Any]:
     url = f"{config.API_BASE_URL}/query"
     payload = {
         "question": question,
-        "lang": BOT_LANG,
+        "lang": lang,
         "top_k": config.TOP_K,
     }
 
@@ -44,10 +60,11 @@ async def call_agrochat_api(question: str) -> dict[str, Any]:
 
 async def safe_send_chat_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
-        await context.bot.send_chat_action(
-            chat_id=update.effective_chat.id,
-            action=ChatAction.TYPING,
-        )
+        if update.effective_chat:
+            await context.bot.send_chat_action(
+                chat_id=update.effective_chat.id,
+                action=ChatAction.TYPING,
+            )
     except Exception as e:
         logger.warning("send_chat_action failed (ignored): %s", e)
 
@@ -61,7 +78,10 @@ async def safe_reply_text(
 
     for attempt in range(1, max_retries + 1):
         try:
-            await update.message.reply_text(text)
+            if update.message:
+                await update.message.reply_text(text)
+            elif update.callback_query and update.callback_query.message:
+                await update.callback_query.message.reply_text(text)
             return
         except (TimedOut, NetworkError) as e:
             last_error = e
@@ -80,13 +100,72 @@ async def safe_reply_text(
     raise last_error
 
 
+def build_language_keyboard() -> InlineKeyboardMarkup:
+    supported = get_supported_languages()
+    buttons = []
+
+    row = []
+    for lang_code in supported:
+        label = LANGUAGE_LABELS.get(lang_code, lang_code.upper())
+        row.append(InlineKeyboardButton(label, callback_data=f"setlang:{lang_code}"))
+
+    if row:
+        buttons.append(row)
+
+    return InlineKeyboardMarkup(buttons)
+
+
+async def show_language_selector(update: Update) -> None:
+    text = "Seleccione el idioma / Select a language / Выберите язык:"
+    keyboard = build_language_keyboard()
+
+    if update.message:
+        await update.message.reply_text(text, reply_markup=keyboard)
+
+
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    lang_pack = get_lang_pack(BOT_LANG)
+    await show_language_selector(update)
+
+
+async def language_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await show_language_selector(update)
+
+
+async def set_language_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if not query:
+        return
+
+    await query.answer()
+
+    if not query.from_user:
+        return
+
+    data = query.data or ""
+    if not data.startswith("setlang:"):
+        return
+
+    lang = data.split(":", 1)[1].strip()
+    if lang not in get_supported_languages():
+        return
+
+    USER_LANGS[query.from_user.id] = lang
+    lang_pack = get_lang_pack(lang)
+
+    try:
+        await query.edit_message_text(
+            text=f"✅ {LANGUAGE_LABELS.get(lang, lang.upper())}"
+        )
+    except Exception:
+        pass
+
     await safe_reply_text(update, lang_pack["bot_welcome"])
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    lang_pack = get_lang_pack(BOT_LANG)
+    user_id = update.effective_user.id if update.effective_user else None
+    lang = get_user_lang(user_id)
+    lang_pack = get_lang_pack(lang)
     await safe_reply_text(update, lang_pack["bot_help"])
 
 
@@ -94,7 +173,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if not update.message or not update.message.text:
         return
 
-    lang_pack = get_lang_pack(BOT_LANG)
+    user_id = update.effective_user.id if update.effective_user else None
+    lang = get_user_lang(user_id)
+    lang_pack = get_lang_pack(lang)
 
     question = update.message.text.strip()
     if not question:
@@ -103,7 +184,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     try:
         await safe_send_chat_action(update, context)
 
-        data = await call_agrochat_api(question)
+        data = await call_agrochat_api(question, lang=lang)
 
         answer = data.get("answer", "No pude obtener una respuesta.")
         sources = data.get("sources", [])
@@ -113,7 +194,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             top_sources = sources[:2]
             formatted = []
             for s in top_sources:
-                formatted.append(f"- {s.get('file', 'desconocido')} (pág. {s.get('page', '?')})")
+                if lang == "en":
+                    formatted.append(f"- {s.get('file', 'unknown')} (p. {s.get('page', '?')})")
+                elif lang == "ru":
+                    formatted.append(f"- {s.get('file', 'неизвестно')} (стр. {s.get('page', '?')})")
+                else:
+                    formatted.append(f"- {s.get('file', 'desconocido')} (pág. {s.get('page', '?')})")
             extra = f"\n\n{lang_pack['bot_main_sources']}\n" + "\n".join(formatted)
 
         await safe_reply_text(update, answer + extra)
@@ -156,6 +242,8 @@ def main() -> None:
 
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("language", language_command))
+    application.add_handler(CallbackQueryHandler(set_language_callback, pattern=r"^setlang:"))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     application.add_error_handler(error_handler)
 

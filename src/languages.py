@@ -50,7 +50,8 @@ LANGUAGES: dict[str, dict] = {
             "- ¿Cómo influye la sombra en el cacao?\n\n"
             "Comandos disponibles:\n"
             "/start\n"
-            "/help"
+            "/help\n"
+            "/language"
         ),
         "bot_main_sources": "Fuentes principales:",
         "bot_api_error": "Error consultando AgroChat API: {status_code}. Intenta de nuevo en un momento.",
@@ -107,7 +108,8 @@ LANGUAGES: dict[str, dict] = {
             "- Как влияет тень на какао?\n\n"
             "Доступные команды:\n"
             "/start\n"
-            "/help"
+            "/help\n"
+            "/language"
         ),
         "bot_main_sources": "Основные источники:",
         "bot_api_error": "Ошибка при обращении к AgroChat API: {status_code}. Попробуй снова позже.",
@@ -164,7 +166,8 @@ LANGUAGES: dict[str, dict] = {
             "- How does shade influence cocoa?\n\n"
             "Available commands:\n"
             "/start\n"
-            "/help"
+            "/help\n"
+            "/language"
         ),
         "bot_main_sources": "Main sources:",
         "bot_api_error": "Error querying AgroChat API: {status_code}. Please try again later.",
