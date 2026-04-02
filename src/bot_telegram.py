@@ -1,5 +1,8 @@
 import asyncio
 import logging
+import os
+from pathlib import Path
+from uuid import uuid4
 from typing import Any
 
 import httpx
@@ -17,6 +20,7 @@ from telegram.ext import (
 
 from src import config
 from src.languages import get_lang_pack, get_supported_languages
+from src.speech_to_text import transcribe_audio_file
 
 logging.basicConfig(
     level=logging.INFO,
@@ -24,10 +28,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Idioma por usuario (memoria temporal mientras el bot está corriendo)
 USER_LANGS: dict[int, str] = {}
 
-# Etiquetas visibles para los botones
 LANGUAGE_LABELS = {
     "es": "Español 🇪🇸",
     "en": "English 🇬🇧",
@@ -36,7 +38,6 @@ LANGUAGE_LABELS = {
 
 
 def get_user_lang(user_id: int | None) -> str:
-    """Return user-selected language or default language."""
     if user_id is None:
         return config.DEFAULT_LANG
     return USER_LANGS.get(user_id, config.DEFAULT_LANG)
@@ -69,11 +70,7 @@ async def safe_send_chat_action(update: Update, context: ContextTypes.DEFAULT_TY
         logger.warning("send_chat_action failed (ignored): %s", e)
 
 
-async def safe_reply_text(
-    update: Update,
-    text: str,
-    max_retries: int = 3,
-) -> None:
+async def safe_reply_text(update: Update, text: str, max_retries: int = 3) -> None:
     last_error = None
 
     for attempt in range(1, max_retries + 1):
@@ -102,17 +99,14 @@ async def safe_reply_text(
 
 def build_language_keyboard() -> InlineKeyboardMarkup:
     supported = get_supported_languages()
-    buttons = []
-
-    row = []
-    for lang_code in supported:
-        label = LANGUAGE_LABELS.get(lang_code, lang_code.upper())
-        row.append(InlineKeyboardButton(label, callback_data=f"setlang:{lang_code}"))
-
-    if row:
-        buttons.append(row)
-
-    return InlineKeyboardMarkup(buttons)
+    row = [
+        InlineKeyboardButton(
+            LANGUAGE_LABELS.get(lang_code, lang_code.upper()),
+            callback_data=f"setlang:{lang_code}",
+        )
+        for lang_code in supported
+    ]
+    return InlineKeyboardMarkup([row])
 
 
 async def show_language_selector(update: Update) -> None:
@@ -153,9 +147,7 @@ async def set_language_callback(update: Update, context: ContextTypes.DEFAULT_TY
     lang_pack = get_lang_pack(lang)
 
     try:
-        await query.edit_message_text(
-            text=f"✅ {LANGUAGE_LABELS.get(lang, lang.upper())}"
-        )
+        await query.edit_message_text(text=f"✅ {LANGUAGE_LABELS.get(lang, lang.upper())}")
     except Exception:
         pass
 
@@ -169,13 +161,38 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await safe_reply_text(update, lang_pack["bot_help"])
 
 
+def _format_sources(sources: list[dict[str, Any]], lang_pack: dict) -> str:
+    if not sources:
+        return ""
+
+    top_sources = sources[:2]
+    formatted = []
+    for s in top_sources:
+        formatted.append(
+            f"- {s.get('file', lang_pack['bot_unknown_file'])} "
+            f"({lang_pack['bot_page_abbrev']} {s.get('page', '?')})"
+        )
+
+    return f"\n\n{lang_pack['bot_main_sources']}\n" + "\n".join(formatted)
+
+
+async def _run_text_query(update: Update, question: str, lang: str) -> None:
+    lang_pack = get_lang_pack(lang)
+
+    data = await call_agrochat_api(question, lang=lang)
+    answer = data.get("answer", "No pude obtener una respuesta.")
+    sources = data.get("sources", [])
+    extra = _format_sources(sources, lang_pack)
+
+    await safe_reply_text(update, answer + extra)
+
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message or not update.message.text:
         return
 
     user_id = update.effective_user.id if update.effective_user else None
     lang = get_user_lang(user_id)
-    lang_pack = get_lang_pack(lang)
 
     question = update.message.text.strip()
     if not question:
@@ -183,37 +200,64 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     try:
         await safe_send_chat_action(update, context)
+        await _run_text_query(update, question, lang)
+    except httpx.HTTPStatusError as e:
+        lang_pack = get_lang_pack(lang)
+        logger.exception("API HTTP error")
+        await safe_reply_text(update, lang_pack["bot_api_error"].format(status_code=e.response.status_code))
+    except Exception as e:
+        lang_pack = get_lang_pack(lang)
+        logger.exception("Unexpected bot error")
+        await safe_reply_text(update, lang_pack["bot_unexpected_error"].format(error=e))
 
-        data = await call_agrochat_api(question, lang=lang)
 
-        answer = data.get("answer", "No pude obtener una respuesta.")
-        sources = data.get("sources", [])
+async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not update.message or not update.message.voice:
+        return
 
-        extra = ""
-        if sources:
-            top_sources = sources[:2]
-            formatted = []
-            for s in top_sources:
-                formatted.append(
-                    f"- {s.get('file', lang_pack['bot_unknown_file'])} "
-                    f"({lang_pack['bot_page_abbrev']} {s.get('page', '?')})"
-                )
-            extra = f"\n\n{lang_pack['bot_main_sources']}\n" + "\n".join(formatted)
+    user_id = update.effective_user.id if update.effective_user else None
+    lang = get_user_lang(user_id)
+    lang_pack = get_lang_pack(lang)
 
-        await safe_reply_text(update, answer + extra)
+    temp_file_path: Path | None = None
+
+    try:
+        await safe_reply_text(update, lang_pack["bot_voice_processing"])
+
+        config.TEMP_AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+
+        voice = update.message.voice
+        telegram_file = await voice.get_file()
+
+        temp_file_path = config.TEMP_AUDIO_DIR / f"{uuid4()}.ogg"
+        await telegram_file.download_to_drive(custom_path=str(temp_file_path))
+
+        transcript = transcribe_audio_file(temp_file_path)
+
+        if not transcript.strip():
+            await safe_reply_text(update, lang_pack["bot_voice_empty"])
+            return
+
+        await safe_reply_text(
+            update,
+            f"{lang_pack['bot_voice_transcribed_as']}\n{transcript}",
+        )
+
+        await safe_send_chat_action(update, context)
+        await _run_text_query(update, transcript, lang)
 
     except httpx.HTTPStatusError as e:
-        logger.exception("API HTTP error")
-        await safe_reply_text(
-            update,
-            lang_pack["bot_api_error"].format(status_code=e.response.status_code),
-        )
+        logger.exception("API HTTP error after voice transcription")
+        await safe_reply_text(update, lang_pack["bot_api_error"].format(status_code=e.response.status_code))
     except Exception as e:
-        logger.exception("Unexpected bot error")
-        await safe_reply_text(
-            update,
-            lang_pack["bot_unexpected_error"].format(error=e),
-        )
+        logger.exception("Voice processing error")
+        await safe_reply_text(update, lang_pack["bot_voice_error"].format(error=e))
+    finally:
+        if temp_file_path and temp_file_path.exists():
+            try:
+                temp_file_path.unlink()
+            except OSError:
+                logger.warning("Could not delete temp audio file: %s", temp_file_path)
 
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -242,6 +286,7 @@ def main() -> None:
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("language", language_command))
     application.add_handler(CallbackQueryHandler(set_language_callback, pattern=r"^setlang:"))
+    application.add_handler(MessageHandler(filters.VOICE, handle_voice_message))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     application.add_error_handler(error_handler)
 

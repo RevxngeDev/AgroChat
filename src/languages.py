@@ -57,6 +57,10 @@ LANGUAGES: dict[str, dict] = {
         "bot_unknown_file": "desconocido",
         "bot_api_error": "Error consultando AgroChat API: {status_code}. Intenta de nuevo en un momento.",
         "bot_unexpected_error": "Ocurrió un error procesando tu consulta: {error}",
+        "bot_voice_processing": "Recibí tu mensaje de voz. Lo estoy transcribiendo...",
+        "bot_voice_transcribed_as": "Transcripción detectada:",
+        "bot_voice_empty": "No pude obtener una transcripción útil del audio.",
+        "bot_voice_error": "Ocurrió un error procesando el mensaje de voz: {error}",
     },
     "en": {
         "language_name": "English",
@@ -116,6 +120,10 @@ LANGUAGES: dict[str, dict] = {
         "bot_unknown_file": "unknown",
         "bot_api_error": "Error querying AgroChat API: {status_code}. Please try again later.",
         "bot_unexpected_error": "An error occurred while processing your query: {error}",
+        "bot_voice_processing": "I received your voice message. I am transcribing it...",
+        "bot_voice_transcribed_as": "Detected transcription:",
+        "bot_voice_empty": "I could not obtain a useful transcription from the audio.",
+        "bot_voice_error": "An error occurred while processing the voice message: {error}",
     },
     "ru": {
         "language_name": "русский",
@@ -175,6 +183,10 @@ LANGUAGES: dict[str, dict] = {
         "bot_unknown_file": "неизвестно",
         "bot_api_error": "Ошибка при обращении к AgroChat API: {status_code}. Попробуй снова позже.",
         "bot_unexpected_error": "Произошла ошибка при обработке запроса: {error}",
+        "bot_voice_processing": "Я получил ваше голосовое сообщение. Выполняю расшифровку...",
+        "bot_voice_transcribed_as": "Распознанная расшифровка:",
+        "bot_voice_empty": "Не удалось получить полезную расшифровку аудио.",
+        "bot_voice_error": "Произошла ошибка при обработке голосового сообщения: {error}",
     },
 }
 

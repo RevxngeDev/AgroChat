@@ -15,6 +15,7 @@ load_dotenv(_PROJECT_ROOT / ".env")
 DOCS_DIR: Path = _PROJECT_ROOT / os.getenv("DOCS_DIR", "data/docs")
 INDEX_DIR: Path = _PROJECT_ROOT / os.getenv("INDEX_DIR", "data/index")
 LOG_DIR: Path = _PROJECT_ROOT / os.getenv("LOG_DIR", "logs")
+TEMP_AUDIO_DIR: Path = _PROJECT_ROOT / os.getenv("TEMP_AUDIO_DIR", "temp/audio")
 
 # --- LLM ---
 GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
@@ -22,6 +23,7 @@ LLM_MODEL: str = os.getenv("LLM_MODEL", "llama-3.1-8b-instant")
 ADMIN_API_KEY: str = os.getenv("ADMIN_API_KEY", "")
 TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
 API_BASE_URL: str = os.getenv("AGROCHAT_API_BASE_URL", "http://127.0.0.1:8000")
+GROQ_STT_MODEL: str = os.getenv("GROQ_STT_MODEL", "whisper-large-v3-turbo")
 
 # --- Embeddings ---
 EMBEDDING_MODEL: str = os.getenv(
