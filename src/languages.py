@@ -51,8 +51,7 @@ LANGUAGES: dict[str, dict] = {
             "/start — Reiniciar el bot\n"
             "/help — Ver esta ayuda\n"
             "/language — Cambiar idioma\n"
-            "/voice_on — Activar respuesta por voz\n"
-            "/voice_off — Desactivar respuesta por voz"
+            "/voice — Activar/desactivar respuesta por voz"
         ),
         "bot_main_sources": "Fuentes principales:",
         "bot_page_abbrev": "pág.",
@@ -67,6 +66,8 @@ LANGUAGES: dict[str, dict] = {
         "bot_voice_reply_disabled": "Listo. A partir de ahora te responderé solo en texto.",
         "bot_voice_reply_generating": "Estoy generando la respuesta en audio...",
         "bot_voice_reply_error": "No pude generar la respuesta en voz: {error}",
+        "bot_select_language": "Selecciona el idioma:",
+        "bot_no_answer": "No pude obtener una respuesta.",
     },
     "en": {
         "language_name": "English",
@@ -120,8 +121,7 @@ LANGUAGES: dict[str, dict] = {
             "/start — Restart the bot\n"
             "/help — Show this help\n"
             "/language — Change language\n"
-            "/voice_on — Enable voice replies\n"
-            "/voice_off — Disable voice replies"
+            "/voice — Toggle voice replies"
         ),
         "bot_main_sources": "Main sources:",
         "bot_page_abbrev": "p.",
@@ -136,6 +136,8 @@ LANGUAGES: dict[str, dict] = {
         "bot_voice_reply_disabled": "Done. From now on I will reply only in text.",
         "bot_voice_reply_generating": "I am generating the voice response...",
         "bot_voice_reply_error": "I could not generate the voice response: {error}",
+        "bot_select_language": "Select a language:",
+        "bot_no_answer": "I could not get an answer.",
     },
     "ru": {
         "language_name": "русский",
@@ -189,8 +191,7 @@ LANGUAGES: dict[str, dict] = {
             "/start — Перезапустить бота\n"
             "/help — Показать помощь\n"
             "/language — Сменить язык\n"
-            "/voice_on — Включить голосовые ответы\n"
-            "/voice_off — Выключить голосовые ответы"
+            "/voice — Вкл/выкл голосовые ответы"
         ),
         "bot_main_sources": "Основные источники:",
         "bot_page_abbrev": "стр.",
@@ -205,6 +206,8 @@ LANGUAGES: dict[str, dict] = {
         "bot_voice_reply_disabled": "Готово. Теперь я буду отвечать только текстом.",
         "bot_voice_reply_generating": "Я генерирую голосовой ответ...",
         "bot_voice_reply_error": "Не удалось создать голосовой ответ: {error}",
+        "bot_select_language": "Выберите язык:",
+        "bot_no_answer": "Не удалось получить ответ.",
     },
 }
 

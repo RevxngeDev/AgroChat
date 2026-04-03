@@ -10,6 +10,7 @@ from src.retriever import retrieve
 from src.prompt_builder import build_prompt
 from src.llm_client import get_completion
 from src.response_builder import build_response
+from src.languages import get_lang_pack
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +94,7 @@ def run_query(
     if not chunks:
         elapsed = time.time() - start
         return QueryServiceResult(
-            answer="No se encontraron fragmentos relevantes." if lang == "es" else "No relevant chunks were found.",
+            answer=get_lang_pack(lang)["no_relevant_chunks"],
             sources=[],
             model=model,
             lang=lang,

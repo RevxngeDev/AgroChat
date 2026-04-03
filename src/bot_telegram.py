@@ -77,16 +77,26 @@ async def safe_send_chat_action(update: Update, context: ContextTypes.DEFAULT_TY
         logger.warning("send_chat_action failed (ignored): %s", e)
 
 
-async def safe_reply_text(update: Update, text: str, max_retries: int = 3) -> None:
+async def safe_reply_text(update: Update, text: str, max_retries: int = 3, parse_mode: str | None = None) -> None:
     last_error = None
 
     for attempt in range(1, max_retries + 1):
         try:
             if update.message:
-                await update.message.reply_text(text)
+                await update.message.reply_text(text, parse_mode=parse_mode)
             elif update.callback_query and update.callback_query.message:
-                await update.callback_query.message.reply_text(text)
+                await update.callback_query.message.reply_text(text, parse_mode=parse_mode)
             return
+        except Exception as e:
+            if parse_mode and "parse entities" in str(e).lower():
+                try:
+                    if update.message:
+                        await update.message.reply_text(text)
+                    elif update.callback_query and update.callback_query.message:
+                        await update.callback_query.message.reply_text(text)
+                    return
+                except (TimedOut, NetworkError):
+                    pass
         except (TimedOut, NetworkError) as e:
             last_error = e
             wait_seconds = min(2 * attempt, 8)
@@ -116,8 +126,16 @@ def build_language_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([row])
 
 
-async def show_language_selector(update: Update) -> None:
-    text = "Seleccione el idioma / Select a language / Выберите язык:"
+async def show_language_selector(update: Update, lang: str | None = None) -> None:
+    if lang:
+        lang_pack = get_lang_pack(lang)
+        text = lang_pack["bot_select_language"]
+    else:
+        text = " / ".join(
+            get_lang_pack(code)["bot_select_language"]
+            for code in get_supported_languages()
+        )
+
     keyboard = build_language_keyboard()
 
     if update.message:
@@ -129,29 +147,26 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 async def language_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await show_language_selector(update)
+    user_id = update.effective_user.id if update.effective_user else None
+    lang = get_user_lang(user_id)
+    await show_language_selector(update, lang=lang)
 
 
-async def voice_on_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def voice_toggle_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id if update.effective_user else None
     lang = get_user_lang(user_id)
     lang_pack = get_lang_pack(lang)
 
-    if user_id is not None:
-        USER_VOICE_REPLY[user_id] = True
+    if user_id is None:
+        return
 
-    await safe_reply_text(update, lang_pack["bot_voice_reply_enabled"])
+    current = USER_VOICE_REPLY.get(user_id, False)
+    USER_VOICE_REPLY[user_id] = not current
 
-
-async def voice_off_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    user_id = update.effective_user.id if update.effective_user else None
-    lang = get_user_lang(user_id)
-    lang_pack = get_lang_pack(lang)
-
-    if user_id is not None:
-        USER_VOICE_REPLY[user_id] = False
-
-    await safe_reply_text(update, lang_pack["bot_voice_reply_disabled"])
+    if not current:
+        await safe_reply_text(update, lang_pack["bot_voice_reply_enabled"])
+    else:
+        await safe_reply_text(update, lang_pack["bot_voice_reply_disabled"])
 
 
 async def set_language_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -194,27 +209,31 @@ def _format_sources(sources: list[dict[str, Any]], lang_pack: dict) -> str:
     if not sources:
         return ""
 
-    top_sources = sources[:2]
+    top_sources = sources[:3]
     formatted = []
     for s in top_sources:
         formatted.append(
-            f"- {s.get('file', lang_pack['bot_unknown_file'])} "
+            f"  📄 {s.get('file', lang_pack['bot_unknown_file'])} "
             f"({lang_pack['bot_page_abbrev']} {s.get('page', '?')})"
         )
 
-    return f"\n\n{lang_pack['bot_main_sources']}\n" + "\n".join(formatted)
+    return (
+        f"\n\n{'─' * 28}\n"
+        f"📚 *{lang_pack['bot_main_sources']}*\n"
+        + "\n".join(formatted)
+    )
 
 
 async def _run_text_query(update: Update, question: str, lang: str) -> str:
     lang_pack = get_lang_pack(lang)
 
     data = await call_agrochat_api(question, lang=lang)
-    answer = data.get("answer", "No pude obtener una respuesta.")
+    answer = data.get("answer", lang_pack["bot_no_answer"])
     sources = data.get("sources", [])
     extra = _format_sources(sources, lang_pack)
 
-    final_text = answer + extra
-    await safe_reply_text(update, final_text)
+    final_text = f"🌱 {answer}{extra}"
+    await safe_reply_text(update, final_text, parse_mode="Markdown")
     return final_text
 
 
@@ -304,7 +323,7 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
             await safe_reply_text(update, lang_pack["bot_voice_empty"])
             return
 
-        await safe_reply_text(update, f"{lang_pack['bot_voice_transcribed_as']}\n{transcript}")
+        await safe_reply_text(update, f"🎤 *{lang_pack['bot_voice_transcribed_as']}*\n_{transcript}_", parse_mode="Markdown")
 
         await safe_send_chat_action(update, context)
         final_text = await _run_text_query(update, transcript, lang)
@@ -351,8 +370,7 @@ def main() -> None:
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("language", language_command))
-    application.add_handler(CommandHandler("voice_on", voice_on_command))
-    application.add_handler(CommandHandler("voice_off", voice_off_command))
+    application.add_handler(CommandHandler("voice", voice_toggle_command))
     application.add_handler(CallbackQueryHandler(set_language_callback, pattern=r"^setlang:"))
     application.add_handler(MessageHandler(filters.VOICE, handle_voice_message))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
@@ -363,8 +381,7 @@ def main() -> None:
             ("start", "Iniciar / Start / Начать"),
             ("help", "Ayuda / Help / Помощь"),
             ("language", "Cambiar idioma / Change language"),
-            ("voice_on", "Activar respuesta por voz / Enable voice"),
-            ("voice_off", "Desactivar respuesta por voz / Disable voice"),
+            ("voice", "Activar/desactivar voz / Toggle voice"),
         ])
 
     application.post_init = post_init
