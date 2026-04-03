@@ -357,6 +357,17 @@ def main() -> None:
     application.add_handler(MessageHandler(filters.VOICE, handle_voice_message))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     application.add_error_handler(error_handler)
+    
+    async def post_init(app: Application) -> None:
+        await app.bot.set_my_commands([
+            ("start", "Iniciar / Start / Начать"),
+            ("help", "Ayuda / Help / Помощь"),
+            ("language", "Cambiar idioma / Change language"),
+            ("voice_on", "Activar respuesta por voz / Enable voice"),
+            ("voice_off", "Desactivar respuesta por voz / Disable voice"),
+        ])
+
+    application.post_init = post_init
 
     logger.info("Starting AgroChat Telegram bot...")
     application.run_polling()

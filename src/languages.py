@@ -45,12 +45,14 @@ LANGUAGES: dict[str, dict] = {
         "bot_help": (
             "Puedes hacerme preguntas técnicas como:\n"
             "- ¿Qué enfermedades afectan al cacao?\n"
-            "- ¿Cómo se recomienda fertilizar el café?\n"
-            "- ¿Cómo influye la sombra en el cacao?\n\n"
+            "- ¿Cómo se recomienda fertilizar el café?\n\n"
+            "También puedes enviarme mensajes de voz.\n\n"
             "Comandos disponibles:\n"
-            "/start\n"
-            "/help\n"
-            "/language"
+            "/start — Reiniciar el bot\n"
+            "/help — Ver esta ayuda\n"
+            "/language — Cambiar idioma\n"
+            "/voice_on — Activar respuesta por voz\n"
+            "/voice_off — Desactivar respuesta por voz"
         ),
         "bot_main_sources": "Fuentes principales:",
         "bot_page_abbrev": "pág.",
@@ -112,12 +114,14 @@ LANGUAGES: dict[str, dict] = {
         "bot_help": (
             "You can ask me technical questions such as:\n"
             "- What diseases affect cocoa?\n"
-            "- How is coffee fertilization recommended?\n"
-            "- How does shade influence cocoa?\n\n"
+            "- How is coffee fertilization recommended?\n\n"
+            "You can also send me voice messages.\n\n"
             "Available commands:\n"
-            "/start\n"
-            "/help\n"
-            "/language"
+            "/start — Restart the bot\n"
+            "/help — Show this help\n"
+            "/language — Change language\n"
+            "/voice_on — Enable voice replies\n"
+            "/voice_off — Disable voice replies"
         ),
         "bot_main_sources": "Main sources:",
         "bot_page_abbrev": "p.",
@@ -130,8 +134,8 @@ LANGUAGES: dict[str, dict] = {
         "bot_voice_error": "An error occurred while processing the voice message: {error}",
         "bot_voice_reply_enabled": "Done. From now on I will also try to reply with voice messages.",
         "bot_voice_reply_disabled": "Done. From now on I will reply only in text.",
-        "bot_voice_reply_generating": "Estoy generando la respuesta en audio...",
-        "bot_voice_reply_error": "No pude generar la respuesta en voz: {error}",
+        "bot_voice_reply_generating": "I am generating the voice response...",
+        "bot_voice_reply_error": "I could not generate the voice response: {error}",
     },
     "ru": {
         "language_name": "русский",
@@ -179,12 +183,14 @@ LANGUAGES: dict[str, dict] = {
         "bot_help": (
             "Ты можешь задавать мне технические вопросы, например:\n"
             "- Какие болезни поражают какао?\n"
-            "- Как рекомендуется удобрять кофе?\n"
-            "- Как влияет тень на какао?\n\n"
+            "- Как рекомендуется удобрять кофе?\n\n"
+            "Также можно отправлять голосовые сообщения.\n\n"
             "Доступные команды:\n"
-            "/start\n"
-            "/help\n"
-            "/language"
+            "/start — Перезапустить бота\n"
+            "/help — Показать помощь\n"
+            "/language — Сменить язык\n"
+            "/voice_on — Включить голосовые ответы\n"
+            "/voice_off — Выключить голосовые ответы"
         ),
         "bot_main_sources": "Основные источники:",
         "bot_page_abbrev": "стр.",
