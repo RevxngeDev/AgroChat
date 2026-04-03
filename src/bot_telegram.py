@@ -237,12 +237,16 @@ async def _run_text_query(update: Update, question: str, lang: str) -> str:
     return final_text
 
 
-async def _send_voice_reply(update: Update, text: str, lang: str) -> None:
+async def _send_voice_reply(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str, lang: str) -> None:
     lang_pack = get_lang_pack(lang)
     temp_voice_path: Path | None = None
 
     try:
-        await safe_reply_text(update, lang_pack["bot_voice_reply_generating"])
+        if update.effective_chat:
+            await context.bot.send_chat_action(
+                chat_id=update.effective_chat.id,
+                action=ChatAction.RECORD_VOICE,
+            )
 
         config.TEMP_TTS_DIR.mkdir(parents=True, exist_ok=True)
         temp_voice_path = config.TEMP_TTS_DIR / f"{uuid4()}.mp3"
@@ -267,7 +271,13 @@ async def _send_voice_reply(update: Update, text: str, lang: str) -> None:
             except OSError:
                 logger.warning("Could not delete temp TTS file: %s", temp_voice_path)
 
-
+async def _send_voice_reply_safe(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str, lang: str) -> None:
+    """Wrapper for background voice generation. Errors are logged, not raised."""
+    try:
+        await _send_voice_reply(update, context, text, lang)
+    except Exception as e:
+        logger.exception("Background voice reply failed: %s", e)
+        
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message or not update.message.text:
         return
@@ -284,7 +294,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         final_text = await _run_text_query(update, question, lang)
 
         if get_user_voice_reply_enabled(user_id):
-            await _send_voice_reply(update, final_text, lang)
+            asyncio.create_task(
+                _send_voice_reply_safe(update, context, final_text, lang)
+            )
 
     except httpx.HTTPStatusError as e:
         lang_pack = get_lang_pack(lang)
@@ -294,7 +306,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         lang_pack = get_lang_pack(lang)
         logger.exception("Unexpected bot error")
         await safe_reply_text(update, lang_pack["bot_unexpected_error"].format(error=e))
-
 
 async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message or not update.message.voice:
@@ -329,7 +340,9 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
         final_text = await _run_text_query(update, transcript, lang)
 
         if get_user_voice_reply_enabled(user_id):
-            await _send_voice_reply(update, final_text, lang)
+            asyncio.create_task(
+                _send_voice_reply_safe(update, context, final_text, lang)
+            )
 
     except httpx.HTTPStatusError as e:
         logger.exception("API HTTP error after voice transcription")
@@ -375,14 +388,24 @@ def main() -> None:
     application.add_handler(MessageHandler(filters.VOICE, handle_voice_message))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     application.add_error_handler(error_handler)
-    
+
     async def post_init(app: Application) -> None:
+        default_pack = get_lang_pack("es")
         await app.bot.set_my_commands([
-            ("start", "Iniciar / Start / Начать"),
-            ("help", "Ayuda / Help / Помощь"),
-            ("language", "Cambiar idioma / Change language"),
-            ("voice", "Activar/desactivar voz / Toggle voice"),
+            ("start", default_pack["cmd_start"]),
+            ("help", default_pack["cmd_help"]),
+            ("language", default_pack["cmd_language"]),
+            ("voice", default_pack["cmd_voice"]),
         ])
+
+        for lang_code in get_supported_languages():
+            lp = get_lang_pack(lang_code)
+            await app.bot.set_my_commands([
+                ("start", lp["cmd_start"]),
+                ("help", lp["cmd_help"]),
+                ("language", lp["cmd_language"]),
+                ("voice", lp["cmd_voice"]),
+            ], language_code=lang_code)
 
     application.post_init = post_init
 

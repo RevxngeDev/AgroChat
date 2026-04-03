@@ -68,6 +68,10 @@ LANGUAGES: dict[str, dict] = {
         "bot_voice_reply_error": "No pude generar la respuesta en voz: {error}",
         "bot_select_language": "Selecciona el idioma:",
         "bot_no_answer": "No pude obtener una respuesta.",
+        "cmd_start": "Iniciar el bot",
+        "cmd_help": "Ver ayuda",
+        "cmd_language": "Cambiar idioma",
+        "cmd_voice": "Activar/desactivar respuesta por voz",
     },
     "en": {
         "language_name": "English",
@@ -138,6 +142,10 @@ LANGUAGES: dict[str, dict] = {
         "bot_voice_reply_error": "I could not generate the voice response: {error}",
         "bot_select_language": "Select a language:",
         "bot_no_answer": "I could not get an answer.",
+        "cmd_start": "Start the bot",
+        "cmd_help": "Show help",
+        "cmd_language": "Change language",
+        "cmd_voice": "Toggle voice replies",
     },
     "ru": {
         "language_name": "русский",
@@ -208,6 +216,10 @@ LANGUAGES: dict[str, dict] = {
         "bot_voice_reply_error": "Не удалось создать голосовой ответ: {error}",
         "bot_select_language": "Выберите язык:",
         "bot_no_answer": "Не удалось получить ответ.",
+        "cmd_start": "Запустить бота",
+        "cmd_help": "Показать помощь",
+        "cmd_language": "Сменить язык",
+        "cmd_voice": "Вкл/выкл голосовые ответы",
     },
 }
 
