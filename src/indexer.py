@@ -107,3 +107,36 @@ def load_index() -> VectorStoreIndex:
 
     logger.info("Index loaded successfully.")
     return index
+
+def add_to_index(documents: list) -> VectorStoreIndex:
+    """
+    Add new documents to an existing FAISS index.
+    If no index exists, creates one from scratch.
+
+    Args:
+        documents: List of new LlamaIndex Document objects to add.
+
+    Returns:
+        Updated VectorStoreIndex.
+    """
+    index_dir: Path = config.INDEX_DIR
+
+    if index_dir.exists() and any(index_dir.iterdir()):
+        logger.info("Loading existing index for incremental update...")
+        index = load_index()
+
+        splitter = SentenceSplitter(
+            chunk_size=config.CHUNK_SIZE,
+            chunk_overlap=config.CHUNK_OVERLAP,
+        )
+        nodes = splitter.get_nodes_from_documents(documents)
+
+        logger.info("Adding %d new nodes to existing index", len(nodes))
+        index.insert_nodes(nodes)
+
+        index.storage_context.persist(persist_dir=str(index_dir))
+        logger.info("Updated index persisted to %s", index_dir)
+        return index
+    else:
+        logger.info("No existing index found. Building from scratch...")
+        return build_index(documents)

@@ -17,6 +17,10 @@ INDEX_DIR: Path = _PROJECT_ROOT / os.getenv("INDEX_DIR", "data/index")
 LOG_DIR: Path = _PROJECT_ROOT / os.getenv("LOG_DIR", "logs")
 TEMP_AUDIO_DIR: Path = _PROJECT_ROOT / os.getenv("TEMP_AUDIO_DIR", "temp/audio")
 
+# --- Supabase ---
+SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
+SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
+
 # --- LLM ---
 GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
 LLM_MODEL: str = os.getenv("LLM_MODEL", "llama-3.1-8b-instant")
@@ -57,6 +61,10 @@ def validate() -> list[str]:
     warnings: list[str] = []
     if not GROQ_API_KEY or GROQ_API_KEY == "your_groq_api_key_here":
         warnings.append("GROQ_API_KEY is not set. Copy .env.example → .env and add your key.")
+    if not SUPABASE_URL or SUPABASE_URL == "your_supabase_url_here":
+        warnings.append("SUPABASE_URL is not set. Check your .env file.")
+    if not SUPABASE_KEY or SUPABASE_KEY == "your_supabase_anon_key_here":
+        warnings.append("SUPABASE_KEY is not set. Check your .env file.")
     if not DOCS_DIR.exists():
         warnings.append(f"DOCS_DIR does not exist: {DOCS_DIR}")
     return warnings

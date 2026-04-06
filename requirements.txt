@@ -32,3 +32,5 @@ python-telegram-bot
 httpx
 
 edge-tts
+
+supabase==2.13.0
