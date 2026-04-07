@@ -11,6 +11,7 @@ from src.prompt_builder import build_prompt
 from src.llm_client import get_completion
 from src.response_builder import build_response
 from src.languages import get_lang_pack
+from src.supabase_client import log_query
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,7 @@ class QueryServiceResult:
     elapsed_sec: float
     chunks_found: int
     retrieval_query: str
+    query_log_id: int | None = None
 
 
 def _is_retryable_error(error: Exception) -> bool:
@@ -79,6 +81,7 @@ def run_query(
     lang: str,
     model: str,
     top_k: int,
+    user_id: int | None = None,
 ) -> QueryServiceResult:
     """
     Reusable AgroChat query pipeline for CLI/API.
@@ -93,14 +96,34 @@ def run_query(
 
     if not chunks:
         elapsed = time.time() - start
+        empty_answer = get_lang_pack(lang)["no_relevant_chunks"]
+
+        log_id = None
+        try:
+            log_record = log_query(
+                user_id=user_id,
+                question=question,
+                retrieval_query=retrieval_query,
+                answer=empty_answer,
+                sources=[],
+                model=model,
+                lang=lang,
+                elapsed_sec=round(elapsed, 2),
+                chunks_found=0,
+            )
+            log_id = log_record.get("id")
+        except Exception as e:
+            logger.warning("Failed to log query: %s", e)
+
         return QueryServiceResult(
-            answer=get_lang_pack(lang)["no_relevant_chunks"],
+            answer=empty_answer,
             sources=[],
             model=model,
             lang=lang,
             elapsed_sec=round(elapsed, 2),
             chunks_found=0,
             retrieval_query=retrieval_query,
+            query_log_id=log_id,
         )
 
     system_prompt, user_prompt = build_prompt(question, chunks, lang=lang)
@@ -112,8 +135,25 @@ def run_query(
     )
 
     rag_resp = build_response(answer, chunks, question, model, lang)
-
     elapsed = time.time() - start
+
+    log_id = None
+    try:
+        log_record = log_query(
+            user_id=user_id,
+            question=question,
+            retrieval_query=retrieval_query,
+            answer=rag_resp.answer,
+            sources=rag_resp.sources,
+            model=model,
+            lang=lang,
+            elapsed_sec=round(elapsed, 2),
+            chunks_found=len(chunks),
+        )
+        log_id = log_record.get("id")
+    except Exception as e:
+        logger.warning("Failed to log query: %s", e)
+
     return QueryServiceResult(
         answer=rag_resp.answer,
         sources=rag_resp.sources,
@@ -122,4 +162,5 @@ def run_query(
         elapsed_sec=round(elapsed, 2),
         chunks_found=len(chunks),
         retrieval_query=retrieval_query,
+        query_log_id=log_id,
     )

@@ -21,6 +21,7 @@ from src.api.schemas import (
     UploadDocumentResponse,
 )
 from src.services.query_service import run_query
+from src.supabase_client import get_or_create_user
 
 app = FastAPI(
     title="AgroChat API",
@@ -216,6 +217,15 @@ def query(payload: QueryRequest) -> QueryResponse:
     model_name = payload.model or config.LLM_MODEL
     top_k = payload.top_k or config.TOP_K
 
+    # Resolve internal user_id from telegram_id if provided
+    internal_user_id = None
+    if payload.telegram_id is not None:
+        try:
+            user = get_or_create_user(payload.telegram_id)
+            internal_user_id = user.get("id")
+        except Exception as e:
+            logger.warning("Failed to resolve user from telegram_id: %s", e)
+
     try:
         result = run_query(
             index=_INDEX,
@@ -223,6 +233,7 @@ def query(payload: QueryRequest) -> QueryResponse:
             lang=payload.lang,
             model=model_name,
             top_k=top_k,
+            user_id=internal_user_id,
         )
         return QueryResponse(
             answer=result.answer,

@@ -6,6 +6,7 @@ class QueryRequest(BaseModel):
     lang: str = Field(default="es", description="Idioma de respuesta")
     model: str | None = Field(default=None, description="Modelo LLM opcional")
     top_k: int | None = Field(default=None, ge=1, le=20, description="Número de chunks a recuperar")
+    telegram_id: int | None = Field(default=None, description="Telegram user ID para logging")
 
 
 class SourceItem(BaseModel):

@@ -19,6 +19,11 @@ from telegram.ext import (
 
 from src import config
 from src.languages import get_lang_pack, get_supported_languages
+from src.supabase_client import (
+    get_or_create_user,
+    update_user_lang,
+    update_user_voice,
+)
 from src.speech_to_text import transcribe_audio_file
 from src.text_to_speech import synthesize_speech_to_file_async
 
@@ -27,9 +32,6 @@ logging.basicConfig(
     format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
 )
 logger = logging.getLogger(__name__)
-
-USER_LANGS: dict[int, str] = {}
-USER_VOICE_REPLY: dict[int, bool] = {}
 
 LANGUAGE_LABELS = {
     "es": "Español 🇪🇸",
@@ -41,21 +43,32 @@ LANGUAGE_LABELS = {
 def get_user_lang(user_id: int | None) -> str:
     if user_id is None:
         return config.DEFAULT_LANG
-    return USER_LANGS.get(user_id, config.DEFAULT_LANG)
+    try:
+        user = get_or_create_user(user_id)
+        return user.get("lang") or config.DEFAULT_LANG
+    except Exception as e:
+        logger.warning("Failed to fetch user lang from Supabase: %s", e)
+        return config.DEFAULT_LANG
 
 
 def get_user_voice_reply_enabled(user_id: int | None) -> bool:
     if user_id is None:
         return False
-    return USER_VOICE_REPLY.get(user_id, False)
+    try:
+        user = get_or_create_user(user_id)
+        return bool(user.get("voice_enabled", False))
+    except Exception as e:
+        logger.warning("Failed to fetch user voice pref from Supabase: %s", e)
+        return False
 
 
-async def call_agrochat_api(question: str, lang: str) -> dict[str, Any]:
+async def call_agrochat_api(question: str, lang: str, telegram_id: int | None = None) -> dict[str, Any]:
     url = f"{config.API_BASE_URL}/query"
     payload = {
         "question": question,
         "lang": lang,
         "top_k": config.TOP_K,
+        "telegram_id": telegram_id,
     }
 
     timeout = httpx.Timeout(60.0, connect=20.0)
@@ -160,14 +173,21 @@ async def voice_toggle_command(update: Update, context: ContextTypes.DEFAULT_TYP
     if user_id is None:
         return
 
-    current = USER_VOICE_REPLY.get(user_id, False)
-    USER_VOICE_REPLY[user_id] = not current
+    current = get_user_voice_reply_enabled(user_id)
+    new_value = not current
 
-    if not current:
+    try:
+        update_user_voice(user_id, new_value)
+    except Exception as e:
+        logger.exception("Failed to update voice preference: %s", e)
+        await safe_reply_text(update, lang_pack["bot_unexpected_error"].format(error=e))
+        return
+
+    if new_value:
         await safe_reply_text(update, lang_pack["bot_voice_reply_enabled"])
     else:
         await safe_reply_text(update, lang_pack["bot_voice_reply_disabled"])
-
+        
 
 async def set_language_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
@@ -187,7 +207,12 @@ async def set_language_callback(update: Update, context: ContextTypes.DEFAULT_TY
     if lang not in get_supported_languages():
         return
 
-    USER_LANGS[query.from_user.id] = lang
+    try:
+        update_user_lang(query.from_user.id, lang)
+    except Exception as e:
+        logger.exception("Failed to update language: %s", e)
+        return
+
     lang_pack = get_lang_pack(lang)
 
     try:
@@ -227,7 +252,8 @@ def _format_sources(sources: list[dict[str, Any]], lang_pack: dict) -> str:
 async def _run_text_query(update: Update, question: str, lang: str) -> str:
     lang_pack = get_lang_pack(lang)
 
-    data = await call_agrochat_api(question, lang=lang)
+    user_id = update.effective_user.id if update.effective_user else None
+    data = await call_agrochat_api(question, lang=lang, telegram_id=user_id)
     answer = data.get("answer", lang_pack["bot_no_answer"])
     sources = data.get("sources", [])
     extra = _format_sources(sources, lang_pack)
