@@ -1,0 +1,51 @@
+[
+
+  {
+    "question": "¿Cuánto tiempo antes debe estar la semilla de café en el germinador en zonas con temperatura media inferior a 19°C?",
+    "ground_truth": "La semilla debe estar en el germinador 8 a 10 meses antes.",
+    "source_chunk": "En zonas cafeteras con temperatura media inferior a 19°C, \nla semilla debe estar en el germinador 8 a 10 meses antes. \nAjustes en las épocas de siembra en condición de El Niño\nCuando se presenta un evento de El Niño en la zona cafetera, \ndisminuye la cantidad de lluvia en el período húmedo y se acentúa \nla magnitud y la duración del período seco, con aumentos de la \ntemperatura y la radiación solar. Por lo general, estas condiciones se \npresentan durante el período activo de El Niño, que normalmente \ntiene una duración de un año, desde el inicio en mayo-junio hasta \njunio a julio del año siguiente. \n...continuación",
+    "crop": "café",
+    "source_file": "31-43.pdf",
+    "page": "5"
+  },
+  {
+    "question": "¿Qué se debe hacer si no se pueden implementar todas las adecuaciones propuestas para el manejo del agua en mi café?",
+    "ground_truth": "Se puede improvisar con otros materiales y seguir implementando otras labores.",
+    "source_chunk": "30\nManejo Ambiental\nV.1 Se debe hacer medición para calcular indicadores definidos en la etapa de planeación.\nH.4 En una condición ideal, un plan bien elaborado se debe poder ejecutar y obtener el resultado \nesperado con los recursos definidos y sin cambios de lo planeado.  Pero en la realidad hay \ndesviaciones,  el plan no se ejecuta como se planeó y se requiere tomar decisiones todos los días \npara administrar los imprevistos.  Su papel es resolver los imprevistos con sus recursos y hacer \nque se regrese, en lo posible, al plan original. Podría ocurrir que no se puedan hacer todas las \nadecuaciones propuestas para el manejo del agua (no se consiguió el tanque planeado) se puede \nimprovisar con otros materiales y seguir implementando otras labores.\nV.2 Con base en los registros recolectados en la etapa de ejecución y las observaciones que los \nagricultores realizaron en el proceso de beneficio, se hace una verificación del cumplimiento de \nlo propuesto. \nV.3 Analizada la información, se determinan las causas de los aciertos y desaciertos. Esto sirve en la \netapa de la acción para proponer nuevas estrategias de mejora. Por ejemplo, si  se quiere minimizar \nla contaminación del agua, se puede observar cómo ha variado la calidad de ésta y cuáles han sido \nlas acciones que han contribuido en mayor medida a su mejora.",
+    "crop": "café",
+    "source_file": "CIS_manejoAmbiental (1).pdf",
+    "page": "Sec1:30"
+  },
+  {
+    "question": "¿Qué se puede hacer con los residuos domésticos orgánicos en una finca de café?",
+    "ground_truth": "Pueden ser transformados en una caseta de compostaje o en la misma en la que se transforma la pulpa.",
+    "source_chunk": "Residuos \ngenerados en \nlas viviendas.\nDomésticos orgánicos \nPueden ser transformados en una caseta \nde compostaje o en la misma en la que se \ntransforma la pulpa.\nInorgánicos no aprovechables\nSe deben separar, almacenar y entregar \nal servicio más cercano.\nA continuación, se dan a conocer las estrategias de sostenibilidad en el manejo  de los \nresiduos sólidos.\nGuía de Buenas Prácticas  \npara la Producción de Café.\nSECCIÓN  6.2    PG 94",
+    "crop": "café",
+    "source_file": "CIS_manejoAmbiental (1).pdf",
+    "page": "Sec1:24"
+  },
+  {
+    "question": "¿Cuántas mazorcas de cacao se pueden recolectar con cinco jornales en el tercer año de cultivo?",
+    "ground_truth": "Se pueden recolectar aproximadamente 2.475 mazorcas con cinco jornales en el tercer año de cultivo.",
+    "source_chunk": "Sistema de producción de cacao ( Theobroma cacao  L.) en la región del sur de Córdoba:  \nanálisis socioeconómico, tecnológico, ambiental y de mercado\n57\n$670.000 pesos. Es importante destacar que este costo no lo asume \ntotalmente el productor, ya que este recibe apoyo por parte de orga-\nnizaciones que fomentan el cultivo, como el gremio de Fedecacao.\nTercer año de mantenimiento del cultivo\nEl tercer año se realiza el control de arvenses de forma manual, emplean-\ndo tres jornales. Para el control de plagas, se hace monitoreo utilizando \nproductos de síntesis química, lo que implica un gasto de dos jornales. \nAdemás, se realizan podas manuales, las cuales tienen un costo de cua-\ntro jornales por sesión; las cuatro podas fitosanitarias que se necesitan \nconsumen en promedio 24 jornales. Para las podas de mantenimiento, \nse emplean seis jornales por hectárea al año. Es importante señalar que \na partir de este año ya no se cultiva plátano en la finca.\nRecolección del cacao\nLa recolección del cacao se lleva a cabo mediante el corte de las \nmazorcas, utilizando un machete. Para el tercer año de cultivo, se \nespera que las plantas alcancen el 50 % de su producción potencial, \ncon un total estimado de 412 plantas, cada una con una producción \nen promedio de seis mazorcas. Se emplean cinco jornales para reco -\nlectar aproximadamente 2.475 mazorcas. Se ha observado que para \nobtener un bulto de 50 kilos de cacao se requieren cuatro jornales, \nque incluyen el desgrane o la extracción de los granos de cacao de \nlas mazorcas.",
+    "crop": "cacao",
+    "source_file": "Ver_Documento_40815.pdf",
+    "page": "57"
+  },
+  {
+    "question": "¿Cómo puedo prevenir que mi árbol de cacao se debilite y sea más susceptible a la Monilia?",
+    "ground_truth": "Una planta bien nutrida es más fuerte frente a los patógenos y las plagas que la atacan, por lo que es importante manejar adecuadamente el árbol y proporcionarle los nutrientes y agua necesarios.",
+    "source_chunk": "^k.^\n1\nFEDECACAO 46 Años\nMonilia\t\nr\nr\n(Moniliphthora roreri)\nCausada por el hongo denominado (Monilioph-\nthora roreri), ataca solamente los frutos en todos\nlos estados de desarrollo desde los recién formados,\nhasta los que se encuentran a punto de maduración.\nLas condiciones ambientales propicias para\nel desarrollo de los hongos, además de la compe-\ntencia por nutrientes y agua, pueden contribuir\na debilitar el árbol, lo que predispone al efecto\nde los patógenos.\nComo principio general, debe observarse que\nuna planta bien nutrida, es más fuerte frente a\nlos patógenos y las plagas que la atacan, igual\nefecto se espera de las plantas manejadas ade-\ncuadamente, de acuerdo a las prácticas que favo-\nrecen su desarrollo.\n-\nSíntomas y signos\nEn frutos jóvenes o pepinos, de menos de\ntres meses, se producen deformaciones, gibas\no abultamientos seguidos por la aparición de\nmanchas negras que cubren finalmente todo el\nfruto.\nEn mazorcas de mas de tres meses, se pre-\nsentan inicialmente los puntos de apariencia\naceitosa, es decir, puntos oscuros brillantes, en\nocasiones con un halo amarillento que da la apa-\nriencia de falsa madurez. Estos síntomas se in-\ncrementan hasta aparecer la mancha de color\nchocolate y luego de ello una semana más para\nla aparición de un polvillo blanco que va tornán-\ndose gris. Este polvillo denotala presencia de co-\nnidias maduras que son las responsables de la re-\nproducción de la enfermedad.\nEl ciclo de vida\nEl hongo causante de la Moniliasis es un pa-\nrasito, pertenece a las llamadas plantas inferio-\nres.",
+    "crop": "cacao",
+    "source_file": "59978_59488.pdf",
+    "page": "112"
+  },
+  {
+    "question": "¿Qué materiales puedo utilizar para elaborar sustratos en el vivero para un cultivo de cacao?",
+    "ground_truth": "Puedes utilizar residuos generados en el cultivo, como cáscaras, exudado de la pulpa hidrolizada, hojas y otros materiales orgánicos producto de las actividades en la finca.",
+    "source_chunk": "66 \n \n \nCapítulo V \nManejo del recurso suelo \n \nEl manejo del recurso suelo para el cultivo de caca o requiere, especialmente a \nla hora del establecimiento del cultivo, de práctic as referidas al drenaje, al \nabonado y al mantenimiento de la cobertura en el lote. \n \nAsimismo, en la fase de vivero, si bien se utiliza el suelo como componente de \nlos sustratos, su manejo toma relevancia por la nec esidad de indagar por \nmateriales que lo sustituyan, considerando que el s uelo fue declarado por la \nOrganización de las Naciones Unidas para la Alimentación y la Agricultura (\nFAO, \n2015) como recurso no renovable. \n \nSustratos en vivero para un cultivo de cacao \n \nEl efecto del sustrato sobre el crecimiento de las plántulas de cacao es evidente, \ny por esta razón existen métodos para su realización. Asimismo, en el sistema de \nproducción del cacao, se genera un gran volumen de residuos que generalmente \nquedan acumulados en el cultivo (cáscaras, el exudado de la pulpa hidrolizada, \nhojas y otros materiales orgánicos producto de las actividades en la finca), por lo \nque se cuenta con materia prima suficiente para la elaboración de los sustratos.  \n \nEn una finca en Yaguará (Huila), Ortíz y Álvarez (2015) recogieron tres toneladas \nde cáscara de cacao (peso fresco) y 60 litros de exudado provenientes de 5.400 \nmazorcas cosechadas en cinco meses, lo que evidenci a el potencial de los \nsubproductos, que, en vez de generar problemas ambi entales, son utilizables \npara elaborar el sustrato en vivero.",
+    "crop": "cacao",
+    "source_file": "Ver_documento_36479.pdf",
+    "page": "66"
+  }
+]
