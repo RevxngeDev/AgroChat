@@ -23,6 +23,7 @@ from src.supabase_client import (
     get_or_create_user,
     update_user_lang,
     update_user_voice,
+    save_feedback,
 )
 from src.speech_to_text import transcribe_audio_file
 from src.text_to_speech import synthesize_speech_to_file_async
@@ -126,6 +127,15 @@ async def safe_reply_text(update: Update, text: str, max_retries: int = 3, parse
 
     raise last_error
 
+def build_feedback_keyboard(query_log_id: int) -> InlineKeyboardMarkup:
+    buttons = [
+        InlineKeyboardButton(
+            f"{'⭐' * i}",
+            callback_data=f"feedback:{query_log_id}:{i}",
+        )
+        for i in range(1, 6)
+    ]
+    return InlineKeyboardMarkup([buttons])
 
 def build_language_keyboard() -> InlineKeyboardMarkup:
     supported = get_supported_languages()
@@ -221,7 +231,47 @@ async def set_language_callback(update: Update, context: ContextTypes.DEFAULT_TY
         pass
 
     await safe_reply_text(update, lang_pack["bot_welcome"])
+    
+async def feedback_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if not query:
+        return
 
+    await query.answer()
+
+    data = query.data or ""
+    if not data.startswith("feedback:"):
+        return
+
+    parts = data.split(":")
+    if len(parts) != 3:
+        return
+
+    try:
+        query_log_id = int(parts[1])
+        rating = int(parts[2])
+    except ValueError:
+        return
+
+    user_id = query.from_user.id if query.from_user else None
+    lang = get_user_lang(user_id)
+    lang_pack = get_lang_pack(lang)
+
+    try:
+        save_feedback(query_log_id=query_log_id, rating=rating)
+        await query.edit_message_text(
+            text=lang_pack["bot_feedback_thanks"].format(rating=rating),
+        )
+    except Exception as e:
+        if "unique_feedback_per_query" in str(e).lower() or "duplicate" in str(e).lower():
+            await query.edit_message_text(
+                text=lang_pack["bot_feedback_already"],
+            )
+        else:
+            logger.exception("Failed to save feedback: %s", e)
+            await query.edit_message_text(
+                text=lang_pack["bot_feedback_already"],
+            )
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id if update.effective_user else None
@@ -249,18 +299,19 @@ def _format_sources(sources: list[dict[str, Any]], lang_pack: dict) -> str:
     )
 
 
-async def _run_text_query(update: Update, question: str, lang: str) -> str:
+async def _run_text_query(update: Update, question: str, lang: str) -> tuple[str, int | None]:
     lang_pack = get_lang_pack(lang)
 
     user_id = update.effective_user.id if update.effective_user else None
     data = await call_agrochat_api(question, lang=lang, telegram_id=user_id)
     answer = data.get("answer", lang_pack["bot_no_answer"])
     sources = data.get("sources", [])
+    query_log_id = data.get("query_log_id")
     extra = _format_sources(sources, lang_pack)
 
     final_text = f"🌱 {answer}{extra}"
     await safe_reply_text(update, final_text, parse_mode="Markdown")
-    return final_text
+    return final_text, query_log_id
 
 
 async def _send_voice_reply(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str, lang: str) -> None:
@@ -317,7 +368,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     try:
         await safe_send_chat_action(update, context)
-        final_text = await _run_text_query(update, question, lang)
+        final_text, query_log_id = await _run_text_query(update, question, lang)
+
+        if query_log_id and update.message:
+            lang_pack = get_lang_pack(lang)
+            await update.message.reply_text(
+                lang_pack["bot_feedback_prompt"],
+                reply_markup=build_feedback_keyboard(query_log_id),
+            )
 
         if get_user_voice_reply_enabled(user_id):
             asyncio.create_task(
@@ -363,7 +421,14 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
         await safe_reply_text(update, f"🎤 *{lang_pack['bot_voice_transcribed_as']}*\n_{transcript}_", parse_mode="Markdown")
 
         await safe_send_chat_action(update, context)
-        final_text = await _run_text_query(update, transcript, lang)
+        final_text, query_log_id = await _run_text_query(update, transcript, lang)
+
+        if query_log_id and update.message:
+            lang_pack = get_lang_pack(lang)
+            await update.message.reply_text(
+                lang_pack["bot_feedback_prompt"],
+                reply_markup=build_feedback_keyboard(query_log_id),
+            )
 
         if get_user_voice_reply_enabled(user_id):
             asyncio.create_task(
@@ -411,6 +476,7 @@ def main() -> None:
     application.add_handler(CommandHandler("language", language_command))
     application.add_handler(CommandHandler("voice", voice_toggle_command))
     application.add_handler(CallbackQueryHandler(set_language_callback, pattern=r"^setlang:"))
+    application.add_handler(CallbackQueryHandler(feedback_callback, pattern=r"^feedback:"))
     application.add_handler(MessageHandler(filters.VOICE, handle_voice_message))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     application.add_error_handler(error_handler)

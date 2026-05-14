@@ -242,6 +242,7 @@ def query(payload: QueryRequest) -> QueryResponse:
             lang=result.lang,
             elapsed_sec=result.elapsed_sec,
             chunks_found=result.chunks_found,
+            query_log_id=result.query_log_id,
         )
     except Exception as e:
         logger.exception("Query failed: %s", e)

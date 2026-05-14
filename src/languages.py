@@ -72,6 +72,9 @@ LANGUAGES: dict[str, dict] = {
         "cmd_help": "Ver ayuda",
         "cmd_language": "Cambiar idioma",
         "cmd_voice": "Activar/desactivar respuesta por voz",
+        "bot_feedback_prompt": "¿Qué tan útil fue esta respuesta?",
+        "bot_feedback_thanks": "¡Gracias por tu valoración! ({rating}/5)",
+        "bot_feedback_already": "Ya valoraste esta respuesta.",
     },
     "en": {
         "language_name": "English",
@@ -146,6 +149,9 @@ LANGUAGES: dict[str, dict] = {
         "cmd_help": "Show help",
         "cmd_language": "Change language",
         "cmd_voice": "Toggle voice replies",
+        "bot_feedback_prompt": "How useful was this answer?",
+        "bot_feedback_thanks": "Thanks for your feedback! ({rating}/5)",
+        "bot_feedback_already": "You already rated this answer.",
     },
     "ru": {
         "language_name": "русский",
@@ -220,6 +226,9 @@ LANGUAGES: dict[str, dict] = {
         "cmd_help": "Показать помощь",
         "cmd_language": "Сменить язык",
         "cmd_voice": "Вкл/выкл голосовые ответы",
+        "bot_feedback_prompt": "Насколько полезен был этот ответ?",
+        "bot_feedback_thanks": "Спасибо за вашу оценку! ({rating}/5)",
+        "bot_feedback_already": "Вы уже оценили этот ответ.",
     },
 }
 

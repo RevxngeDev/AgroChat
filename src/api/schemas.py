@@ -23,6 +23,7 @@ class QueryResponse(BaseModel):
     lang: str
     elapsed_sec: float
     chunks_found: int
+    query_log_id: int | None = Field(default=None, description="ID del log en Supabase para feedback")
 
 
 class HealthResponse(BaseModel):
