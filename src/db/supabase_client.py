@@ -328,3 +328,25 @@ def get_users_count() -> int:
         .execute()
     )
     return response.count or 0
+
+# ── Admin: Crops ──
+
+def create_crop(name: str, label: str) -> dict:
+    """Create a new crop in the database."""
+    response = (
+        get_client()
+        .table("crops")
+        .insert({"name": name, "label": label})
+        .execute()
+    )
+    logger.info("Created crop: %s (%s)", name, label)
+    return response.data[0]
+
+
+def get_crop_folders() -> dict[str, str]:
+    """
+    Load crop folders from Supabase as the single source of truth.
+    Returns dict like: {"coffee": "café", "cocoa": "cacao"}
+    """
+    crops = get_all_crops()
+    return {crop["name"]: crop["label"] for crop in crops}

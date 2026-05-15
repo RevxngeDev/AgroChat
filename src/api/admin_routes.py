@@ -10,6 +10,8 @@ from fastapi import APIRouter, Header, HTTPException, File, Form, UploadFile
 
 from src import config
 from src.db.supabase_client import (
+    create_crop,
+    get_all_crops,
     get_all_crops,
     get_documents_with_crops,
     get_feedback_list,
@@ -223,3 +225,30 @@ def trigger_reindex(x_api_key: str | None = Header(default=None)) -> dict:
         "documents_indexed": len(processed_ids),
         "pages_added": len(all_docs),
     }
+
+@router.post("/crops")
+def add_crop(
+    name: str = Form(..., description="Folder name in English, e.g. 'tomato'"),
+    label: str = Form(..., description="Display name in Spanish, e.g. 'tomate'"),
+    x_api_key: str | None = Header(default=None),
+) -> dict:
+    _check_admin_key(x_api_key)
+
+    # Check if crop already exists
+    existing = get_crop_by_name(name)
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Crop '{name}' already exists.",
+        )
+
+    try:
+        crop = create_crop(name=name.lower().strip(), label=label.strip())
+        return {
+            "ok": True,
+            "message": f"Crop '{label}' ({name}) created successfully.",
+            "crop": crop,
+        }
+    except Exception as e:
+        logger.exception("Failed to create crop: %s", e)
+        raise HTTPException(status_code=500, detail=f"Failed to create crop: {e}")

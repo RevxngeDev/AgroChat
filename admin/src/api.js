@@ -53,3 +53,20 @@ export async function triggerReindex() {
   }
   return res.json();
 }
+
+export async function createCrop(name, label) {
+  const formData = new FormData();
+  formData.append("name", name);
+  formData.append("label", label);
+
+  const res = await fetch(`${API_URL}/admin/crops`, {
+    method: "POST",
+    headers: { "x-api-key": API_KEY },
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.detail || "Failed to create crop");
+  }
+  return res.json();
+}

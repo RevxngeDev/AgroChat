@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getDocuments, uploadDocument, triggerReindex } from "../api";
+import { getDocuments, uploadDocument, triggerReindex, createCrop } from "../api";
 
 export default function Documents() {
   const [data, setData] = useState(null);
@@ -8,6 +8,10 @@ export default function Documents() {
   const [uploadMsg, setUploadMsg] = useState(null);
   const [reindexing, setReindexing] = useState(false);
   const [reindexMsg, setReindexMsg] = useState(null);
+  const [newCropName, setNewCropName] = useState("");
+  const [newCropLabel, setNewCropLabel] = useState("");
+  const [creatingCrop, setCreatingCrop] = useState(false);
+  const [cropMsg, setCropMsg] = useState(null);
   const [selectedCrop, setSelectedCrop] = useState("");
   const [selectedFile, setSelectedFile] = useState(null);
 
@@ -46,6 +50,23 @@ export default function Documents() {
       setReindexMsg({ ok: false, text: e.message });
     } finally {
       setReindexing(false);
+    }
+  };
+
+  const handleCreateCrop = async () => {
+    if (!newCropName || !newCropLabel) return;
+    setCreatingCrop(true);
+    setCropMsg(null);
+    try {
+      const result = await createCrop(newCropName, newCropLabel);
+      setCropMsg({ ok: true, text: result.message });
+      setNewCropName("");
+      setNewCropLabel("");
+      loadData();
+    } catch (e) {
+      setCropMsg({ ok: false, text: e.message });
+    } finally {
+      setCreatingCrop(false);
     }
   };
 
@@ -107,6 +128,38 @@ export default function Documents() {
         {reindexMsg && (
           <p className={`mt-3 text-sm ${reindexMsg.ok ? "text-green-600" : "text-red-500"}`}>
             {reindexMsg.text}
+          </p>
+        )}
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">Agregar nuevo cultivo</h3>
+        <div className="flex items-center gap-4">
+          <input
+            type="text"
+            placeholder="Nombre en inglés (ej: tomato)"
+            value={newCropName}
+            onChange={(e) => setNewCropName(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm flex-1"
+          />
+          <input
+            type="text"
+            placeholder="Etiqueta en español (ej: tomate)"
+            value={newCropLabel}
+            onChange={(e) => setNewCropLabel(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm flex-1"
+          />
+          <button
+            onClick={handleCreateCrop}
+            disabled={creatingCrop || !newCropName || !newCropLabel}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {creatingCrop ? "Creando..." : "🌿 Crear cultivo"}
+          </button>
+        </div>
+        {cropMsg && (
+          <p className={`mt-3 text-sm ${cropMsg.ok ? "text-green-600" : "text-red-500"}`}>
+            {cropMsg.text}
           </p>
         )}
       </div>

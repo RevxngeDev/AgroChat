@@ -52,11 +52,31 @@ DEFAULT_LANG: str = os.getenv("DEFAULT_LANG", "es")
 
 # --- Crop metadata mapping ---
 # Maps subfolder names under DOCS_DIR to crop labels used in metadata.
-CROP_FOLDERS: dict[str, str] = {
-    "coffee": "café",
+# Fallback crops (used if Supabase is not available)
+_DEFAULT_CROP_FOLDERS: dict[str, str] = {
+    "avocado": "aguacate",
+    "banana": "banano",
     "cocoa": "cacao",
+    "coffee": "café",
+    "corn": "maíz",
+    "rice": "arroz",
 }
 
+
+def get_crop_folders() -> dict[str, str]:
+    """Load crops from Supabase. Falls back to hardcoded if unavailable."""
+    try:
+        from src.db.supabase_client import get_crop_folders as _db_crops
+        crops = _db_crops()
+        if crops:
+            return crops
+    except Exception:
+        pass
+    return _DEFAULT_CROP_FOLDERS
+
+
+# For backward compatibility
+CROP_FOLDERS: dict[str, str] = _DEFAULT_CROP_FOLDERS
 
 def validate() -> list[str]:
     """Return a list of configuration warnings (empty = all good)."""
