@@ -241,3 +241,90 @@ def save_feedback(query_log_id: int, rating: int, comment: str | None = None) ->
     )
     logger.info("Saved feedback for query_log %d: rating=%d", query_log_id, rating)
     return response.data[0]
+
+# ── Admin: Query logs ──
+
+def get_query_logs(limit: int = 50, offset: int = 0) -> list[dict]:
+    response = (
+        get_client()
+        .table("query_logs")
+        .select("*")
+        .order("created_at", desc=True)
+        .range(offset, offset + limit - 1)
+        .execute()
+    )
+    return response.data
+
+
+def get_query_logs_count() -> int:
+    response = (
+        get_client()
+        .table("query_logs")
+        .select("id", count="exact")
+        .execute()
+    )
+    return response.count or 0
+
+
+# ── Admin: Feedback stats ──
+
+def get_feedback_stats() -> dict:
+    response = (
+        get_client()
+        .table("feedback")
+        .select("*")
+        .execute()
+    )
+    feedbacks = response.data
+    if not feedbacks:
+        return {
+            "total_ratings": 0,
+            "average_rating": 0,
+            "distribution": {1: 0, 2: 0, 3: 0, 4: 0, 5: 0},
+        }
+
+    ratings = [f["rating"] for f in feedbacks]
+    distribution = {i: ratings.count(i) for i in range(1, 6)}
+
+    return {
+        "total_ratings": len(ratings),
+        "average_rating": round(sum(ratings) / len(ratings), 2),
+        "distribution": distribution,
+    }
+
+
+def get_feedback_list(limit: int = 50) -> list[dict]:
+    response = (
+        get_client()
+        .table("feedback")
+        .select("*, query_logs(question, answer, lang, model)")
+        .order("created_at", desc=True)
+        .range(0, limit - 1)
+        .execute()
+    )
+    return response.data
+
+
+# ── Admin: Documents ──
+
+def get_documents_with_crops() -> list[dict]:
+    response = (
+        get_client()
+        .table("documents")
+        .select("*, crops(name, label)")
+        .order("created_at", desc=True)
+        .execute()
+    )
+    return response.data
+
+
+# ── Admin: Users ──
+
+def get_users_count() -> int:
+    response = (
+        get_client()
+        .table("users")
+        .select("id", count="exact")
+        .execute()
+    )
+    return response.count or 0

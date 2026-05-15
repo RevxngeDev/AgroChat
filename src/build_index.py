@@ -17,12 +17,12 @@ from rich.logging import RichHandler
 from rich.table import Table
 
 from src import config
-from src.supabase_client import (
+from src.db.supabase_client import (
     get_unindexed_documents,
     download_pdf,
     mark_document_indexed,
 )
-from src.indexer import add_to_index, get_embed_model
+from src.core.indexer import add_to_index, get_embed_model
 
 console = Console()
 

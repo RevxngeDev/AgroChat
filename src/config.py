@@ -20,6 +20,8 @@ TEMP_AUDIO_DIR: Path = _PROJECT_ROOT / os.getenv("TEMP_AUDIO_DIR", "temp/audio")
 # --- Supabase ---
 SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
+# --- Admin ---
+ADMIN_API_KEY: str = os.getenv("ADMIN_API_KEY", "")
 
 # --- LLM ---
 GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")

@@ -18,8 +18,8 @@ from pathlib import Path
 from rich.console import Console
 from rich.progress import track
 
-from src.indexer import load_index
-from src.llm_client import get_completion
+from src.core.indexer import load_index
+from src.core.llm_client import get_completion
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

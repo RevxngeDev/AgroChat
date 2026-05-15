@@ -6,7 +6,7 @@ into a structured output for display.
 
 from dataclasses import dataclass
 
-from src.retriever import RetrievedChunk
+from src.core.retriever import RetrievedChunk
 
 
 @dataclass

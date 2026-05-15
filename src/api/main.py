@@ -1,27 +1,22 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 
-from fastapi import FastAPI, File, Form, Header, HTTPException, Query, UploadFile
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 from src import config
-from src.indexer import build_index, load_index
-from src.loader import load_documents
+from src.core.indexer import load_index
 from src.api.schemas import (
-    BasicMetricsResponse,
     ConfigResponse,
-    CropMetricItem,
-    DocumentItem,
     HealthResponse,
     IndexStatusResponse,
     QueryRequest,
     QueryResponse,
-    ReindexResponse,
-    UploadDocumentResponse,
 )
 from src.services.query_service import run_query
-from src.supabase_client import get_or_create_user
+from src.db.supabase_client import get_or_create_user
+from src.api.admin_routes import router as admin_router
 
 app = FastAPI(
     title="AgroChat API",
@@ -29,17 +24,19 @@ app = FastAPI(
     description="API del chatbot agrícola inteligente AgroChat",
 )
 
+app.include_router(admin_router)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 logger = logging.getLogger(__name__)
 
 _INDEX = None
-
-
-def _check_admin_key(x_api_key: str | None) -> None:
-    if not config.ADMIN_API_KEY:
-        raise HTTPException(status_code=500, detail="ADMIN_API_KEY no está configurada en .env")
-
-    if x_api_key != config.ADMIN_API_KEY:
-        raise HTTPException(status_code=401, detail="No autorizado")
 
 
 @app.on_event("startup")
@@ -50,6 +47,16 @@ def startup_event() -> None:
         logger.info("AgroChat index loaded successfully on startup.")
     except Exception as e:
         logger.exception("Failed to load index on startup: %s", e)
+        _INDEX = None
+
+
+def reload_index() -> None:
+    global _INDEX
+    try:
+        _INDEX = load_index()
+        logger.info("Index reloaded successfully.")
+    except Exception as e:
+        logger.exception("Failed to reload index: %s", e)
         _INDEX = None
 
 
@@ -87,123 +94,6 @@ def get_index_status() -> IndexStatusResponse:
     )
 
 
-@app.get("/admin/documents", response_model=list[DocumentItem])
-def list_documents(
-    crop: str | None = Query(default=None, description="Filtrar por carpeta de cultivo, ej. coffee o cocoa"),
-    x_api_key: str | None = Header(default=None),
-) -> list[DocumentItem]:
-    _check_admin_key(x_api_key)
-
-    items: list[DocumentItem] = []
-
-    for folder_name, crop_label in config.CROP_FOLDERS.items():
-        if crop and folder_name != crop:
-            continue
-
-        folder_path: Path = config.DOCS_DIR / folder_name
-        if not folder_path.exists():
-            continue
-
-        pdf_files = sorted(folder_path.glob("*.pdf"))
-        for pdf_path in pdf_files:
-            items.append(
-                DocumentItem(
-                    file_name=pdf_path.name,
-                    crop_folder=folder_name,
-                    crop_label=crop_label,
-                    relative_path=str(pdf_path.relative_to(config.DOCS_DIR.parent)),
-                    size_bytes=pdf_path.stat().st_size,
-                )
-            )
-
-    return items
-
-
-@app.get("/admin/metrics/basic", response_model=BasicMetricsResponse)
-def get_basic_metrics(x_api_key: str | None = Header(default=None)) -> BasicMetricsResponse:
-    _check_admin_key(x_api_key)
-
-    crop_metrics: list[CropMetricItem] = []
-    total_pdfs = 0
-
-    for folder_name, crop_label in config.CROP_FOLDERS.items():
-        folder_path = config.DOCS_DIR / folder_name
-        pdf_count = 0
-
-        if folder_path.exists():
-            pdf_count = len(list(folder_path.glob("*.pdf")))
-
-        total_pdfs += pdf_count
-        crop_metrics.append(
-            CropMetricItem(
-                crop_folder=folder_name,
-                crop_label=crop_label,
-                pdf_count=pdf_count,
-            )
-        )
-
-    return BasicMetricsResponse(
-        name="AgroChat API",
-        index_loaded=_INDEX is not None,
-        index_exists=config.INDEX_DIR.exists(),
-        total_crops=len(config.CROP_FOLDERS),
-        total_pdfs=total_pdfs,
-        crops=crop_metrics,
-    )
-
-
-@app.post("/admin/documents/upload", response_model=UploadDocumentResponse)
-async def upload_document(
-    crop: str = Form(..., description="Carpeta de cultivo destino, ej. coffee o cocoa"),
-    file: UploadFile = File(...),
-    x_api_key: str | None = Header(default=None),
-) -> UploadDocumentResponse:
-    _check_admin_key(x_api_key)
-
-    if crop not in config.CROP_FOLDERS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Crop inválido. Valores permitidos: {list(config.CROP_FOLDERS.keys())}"
-        )
-
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="El archivo no tiene nombre.")
-
-    if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Solo se permiten archivos PDF.")
-
-    target_dir = config.DOCS_DIR / crop
-    target_dir.mkdir(parents=True, exist_ok=True)
-
-    target_path = target_dir / file.filename
-    if target_path.exists():
-        raise HTTPException(status_code=409, detail="Ya existe un archivo con ese nombre en ese cultivo.")
-
-    try:
-        content = await file.read()
-        if not content:
-            raise HTTPException(status_code=400, detail="El archivo está vacío.")
-
-        target_path.write_bytes(content)
-
-        return UploadDocumentResponse(
-            ok=True,
-            message="Documento subido correctamente. Recuerda ejecutar /admin/reindex para incorporarlo al índice.",
-            file_name=target_path.name,
-            crop_folder=crop,
-            crop_label=config.CROP_FOLDERS[crop],
-            relative_path=str(target_path.relative_to(config.DOCS_DIR.parent)),
-            size_bytes=target_path.stat().st_size,
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception("Upload failed: %s", e)
-        raise HTTPException(status_code=500, detail=f"Error al subir el documento: {e}")
-    finally:
-        await file.close()
-
-
 @app.post("/query", response_model=QueryResponse)
 def query(payload: QueryRequest) -> QueryResponse:
     global _INDEX
@@ -217,7 +107,6 @@ def query(payload: QueryRequest) -> QueryResponse:
     model_name = payload.model or config.LLM_MODEL
     top_k = payload.top_k or config.TOP_K
 
-    # Resolve internal user_id from telegram_id if provided
     internal_user_id = None
     if payload.telegram_id is not None:
         try:
@@ -251,39 +140,13 @@ def query(payload: QueryRequest) -> QueryResponse:
         if "timed out" in msg or "timeout" in msg:
             raise HTTPException(
                 status_code=504,
-                detail="La consulta al modelo tardó demasiado. Intenta de nuevo en unos segundos."
+                detail="La consulta al modelo tardó demasiado. Intenta de nuevo en unos segundos.",
             )
 
         if "429" in msg or "rate limit" in msg:
             raise HTTPException(
                 status_code=429,
-                detail="Se alcanzó temporalmente el límite de uso del modelo. Intenta nuevamente en un momento."
+                detail="Se alcanzó temporalmente el límite de uso del modelo. Intenta nuevamente en un momento.",
             )
 
         raise HTTPException(status_code=500, detail=f"Error interno al procesar la consulta: {e}")
-
-
-@app.post("/admin/reindex", response_model=ReindexResponse)
-def admin_reindex(x_api_key: str | None = Header(default=None)) -> ReindexResponse:
-    global _INDEX
-    _check_admin_key(x_api_key)
-
-    try:
-        docs = load_documents()
-        if not docs:
-            raise HTTPException(status_code=400, detail="No se encontraron documentos para indexar")
-
-        build_index(docs)
-        _INDEX = load_index()
-
-        return ReindexResponse(
-            ok=True,
-            message="Índice reconstruido y recargado correctamente.",
-            docs_loaded=len(docs),
-            index_dir=str(config.INDEX_DIR),
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception("Reindex failed: %s", e)
-        raise HTTPException(status_code=500, detail=f"Error al reconstruir el índice: {e}")

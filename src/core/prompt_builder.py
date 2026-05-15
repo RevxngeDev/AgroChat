@@ -5,7 +5,7 @@ retrieved context chunks, and the user query.
 """
 
 from src.languages import get_lang_pack
-from src.retriever import RetrievedChunk
+from src.core.retriever import RetrievedChunk
 
 
 def build_prompt(query: str, chunks: list[RetrievedChunk], lang: str = "es") -> tuple[str, str]:

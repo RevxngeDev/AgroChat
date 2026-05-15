@@ -19,14 +19,14 @@ from telegram.ext import (
 
 from src import config
 from src.languages import get_lang_pack, get_supported_languages
-from src.supabase_client import (
+from src.db.supabase_client import (
     get_or_create_user,
     update_user_lang,
     update_user_voice,
     save_feedback,
 )
-from src.speech_to_text import transcribe_audio_file
-from src.text_to_speech import synthesize_speech_to_file_async
+from src.speech.stt import transcribe_audio_file
+from src.speech.tts import synthesize_speech_to_file_async
 
 logging.basicConfig(
     level=logging.INFO,

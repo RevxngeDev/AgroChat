@@ -5,13 +5,13 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
-from src.query_normalizer import normalize_query_for_retrieval
-from src.retriever import retrieve
-from src.prompt_builder import build_prompt
-from src.llm_client import get_completion
-from src.response_builder import build_response
+from src.core.query_normalizer import normalize_query_for_retrieval
+from src.core.retriever import retrieve
+from src.core.prompt_builder import build_prompt
+from src.core.llm_client import get_completion
+from src.core.response_builder import build_response
 from src.languages import get_lang_pack
-from src.supabase_client import log_query
+from src.db.supabase_client import log_query
 
 logger = logging.getLogger(__name__)
 

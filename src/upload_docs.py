@@ -13,7 +13,7 @@ from rich.console import Console
 from rich.table import Table
 
 from src import config
-from src.supabase_client import (
+from src.db.supabase_client import (
     get_crop_by_name,
     get_all_documents,
     register_document,

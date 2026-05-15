@@ -5,7 +5,7 @@ Normalizes user queries to the base corpus language (Spanish) before retrieval.
 
 import logging
 
-from src.llm_client import get_completion
+from src.core.llm_client import get_completion
 
 logger = logging.getLogger(__name__)
 

@@ -12,7 +12,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from src import config
-from src.indexer import load_index
+from src.core.indexer import load_index
 from src.languages import get_lang_pack, get_supported_languages
 from src.services.query_service import run_query
 
