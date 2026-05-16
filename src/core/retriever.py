@@ -236,28 +236,51 @@ def _retrieve_balanced(index: VectorStoreIndex, query: str, k: int, target_crops
     return chunks
 
 
-def retrieve(index: VectorStoreIndex, query: str, top_k: int | None = None) -> list[RetrievedChunk]:
+def retrieve(
+    index: VectorStoreIndex,
+    query: str,
+    top_k: int | None = None,
+    crop_filter: list[str] | None = None,
+) -> list[RetrievedChunk]:
     """
     Retrieve the top-k most relevant chunks for a query.
 
-    Strategy:
-    - standard retrieval for normal questions
-    - balanced retrieval for comparative questions mentioning 2+ configured crops
+    Args:
+        index: The loaded VectorStoreIndex.
+        query: User question in natural language.
+        top_k: Number of results (defaults to config.TOP_K).
+        crop_filter: Optional list of crop labels to filter by.
+
+    Returns:
+        List of RetrievedChunk sorted by relevance (best first).
     """
     k = top_k or config.TOP_K
 
-    mentioned_crops = _detect_mentioned_crops(query)
-    is_comparative = _is_comparative_query(query)
+    # If filtering by crop, retrieve more and filter after
+    retrieve_k = k * 3 if crop_filter else k
 
-    if is_comparative and len(mentioned_crops) >= 2:
-        logger.info(
-            "Comparative query detected. Mentioned crops: %s | query='%s'",
-            mentioned_crops,
-            query[:80],
-        )
-        chunks = _retrieve_balanced(index, query, k, mentioned_crops)
-    else:
-        chunks = _retrieve_standard(index, query, k)
+    retriever = index.as_retriever(similarity_top_k=retrieve_k)
+    nodes: list[NodeWithScore] = retriever.retrieve(query)
 
-    logger.info("Retrieved %d chunks for query: '%s'", len(chunks), query[:80])
+    chunks: list[RetrievedChunk] = []
+    for node in nodes:
+        meta = node.metadata or {}
+        crop = meta.get("crop", "unknown")
+
+        # Apply crop filter if specified
+        if crop_filter and crop not in crop_filter:
+            continue
+
+        chunks.append(RetrievedChunk(
+            text=node.get_text(),
+            score=round(node.score or 0.0, 4),
+            crop=crop,
+            source_file=meta.get("source_file", "unknown"),
+            page_label=meta.get("page_label", "?"),
+        ))
+
+        if len(chunks) >= k:
+            break
+
+    logger.info("Retrieved %d chunks for query: '%s' (crop_filter=%s)", len(chunks), query[:80], crop_filter)
     return chunks

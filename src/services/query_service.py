@@ -12,6 +12,7 @@ from src.core.llm_client import get_completion
 from src.core.response_builder import build_response
 from src.languages import get_lang_pack
 from src.db.supabase_client import log_query
+from src.core.crop_detector import detect_crops
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +93,8 @@ def run_query(
     start = time.time()
 
     retrieval_query = normalize_query_for_retrieval(question, lang)
-    chunks = retrieve(index, retrieval_query, top_k=top_k)
+    detected_crops = detect_crops(question)
+    chunks = retrieve(index, retrieval_query, top_k=top_k, crop_filter=detected_crops or None)
 
     if not chunks:
         elapsed = time.time() - start
