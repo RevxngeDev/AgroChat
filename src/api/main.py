@@ -123,6 +123,7 @@ def query(payload: QueryRequest) -> QueryResponse:
             model=model_name,
             top_k=top_k,
             user_id=internal_user_id,
+            conversation_history=payload.conversation_history or "",
         )
         return QueryResponse(
             answer=result.answer,

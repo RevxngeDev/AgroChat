@@ -8,7 +8,7 @@ from src.languages import get_lang_pack
 from src.core.retriever import RetrievedChunk
 
 
-def build_prompt(query: str, chunks: list[RetrievedChunk], lang: str = "es") -> tuple[str, str]:
+def build_prompt(query: str, chunks: list[RetrievedChunk], lang: str = "es", conversation_history: str = "") -> tuple[str, str]:
     lang_pack = get_lang_pack(lang)
 
     system_prompt = (
@@ -39,8 +39,13 @@ def build_prompt(query: str, chunks: list[RetrievedChunk], lang: str = "es") -> 
         )
 
     context_block = "\n\n---\n\n".join(context_parts)
+    
+    history_block = ""
+    if conversation_history:
+        history_block = f"CONVERSATION HISTORY:\n{conversation_history}\n\n"
 
     user_prompt = (
+        f"{history_block}"
         f"{lang_pack['context_label']}:\n{context_block}\n\n"
         f"{lang_pack['question_label']}: {query}\n\n"
         f"{lang_pack['user_instruction']}\n\n"

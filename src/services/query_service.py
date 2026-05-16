@@ -83,6 +83,7 @@ def run_query(
     model: str,
     top_k: int,
     user_id: int | None = None,
+    conversation_history: str = "",
 ) -> QueryServiceResult:
     """
     Reusable AgroChat query pipeline for CLI/API.
@@ -128,7 +129,7 @@ def run_query(
             query_log_id=log_id,
         )
 
-    system_prompt, user_prompt = build_prompt(question, chunks, lang=lang)
+    system_prompt, user_prompt = build_prompt(question, chunks, lang=lang, conversation_history=conversation_history)
     answer = _get_completion_with_retry(
         system_prompt,
         user_prompt,

@@ -27,6 +27,7 @@ from src.db.supabase_client import (
 )
 from src.speech.stt import transcribe_audio_file
 from src.speech.tts import synthesize_speech_to_file_async
+from src.core.conversation_memory import add_exchange, format_history_for_prompt
 
 logging.basicConfig(
     level=logging.INFO,
@@ -63,13 +64,14 @@ def get_user_voice_reply_enabled(user_id: int | None) -> bool:
         return False
 
 
-async def call_agrochat_api(question: str, lang: str, telegram_id: int | None = None) -> dict[str, Any]:
+async def call_agrochat_api(question: str, lang: str, telegram_id: int | None = None, conversation_history: str = "") -> dict[str, Any]:
     url = f"{config.API_BASE_URL}/query"
     payload = {
         "question": question,
         "lang": lang,
         "top_k": config.TOP_K,
         "telegram_id": telegram_id,
+        "conversation_history": conversation_history,
     }
 
     timeout = httpx.Timeout(60.0, connect=20.0)
@@ -303,7 +305,8 @@ async def _run_text_query(update: Update, question: str, lang: str) -> tuple[str
     lang_pack = get_lang_pack(lang)
 
     user_id = update.effective_user.id if update.effective_user else None
-    data = await call_agrochat_api(question, lang=lang, telegram_id=user_id)
+    history = format_history_for_prompt(user_id) if user_id else ""
+    data = await call_agrochat_api(question, lang=lang, telegram_id=user_id, conversation_history=history)
     answer = data.get("answer", lang_pack["bot_no_answer"])
     sources = data.get("sources", [])
     query_log_id = data.get("query_log_id")
@@ -369,6 +372,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     try:
         await safe_send_chat_action(update, context)
         final_text, query_log_id = await _run_text_query(update, question, lang)
+        if user_id and final_text:
+            add_exchange(user_id, question, final_text)
 
         if query_log_id and update.message:
             lang_pack = get_lang_pack(lang)
@@ -422,6 +427,8 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
 
         await safe_send_chat_action(update, context)
         final_text, query_log_id = await _run_text_query(update, transcript, lang)
+        if user_id and final_text:
+            add_exchange(user_id, transcript, final_text)
 
         if query_log_id and update.message:
             lang_pack = get_lang_pack(lang)

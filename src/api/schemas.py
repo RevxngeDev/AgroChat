@@ -7,6 +7,7 @@ class QueryRequest(BaseModel):
     model: str | None = Field(default=None, description="Modelo LLM opcional")
     top_k: int | None = Field(default=None, ge=1, le=20, description="Número de chunks a recuperar")
     telegram_id: int | None = Field(default=None, description="Telegram user ID para logging")
+    conversation_history: str | None = Field(default=None, description="Conversation history for context")
 
 
 class SourceItem(BaseModel):
