@@ -1,26 +1,26 @@
 import { useEffect, useState } from "react";
 import { getFeedback } from "../api";
+import { useLang } from "../context/LangContext";
 
 export default function Feedback() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  const { t } = useLang();
 
   useEffect(() => {
-    getFeedback()
-      .then(setData)
-      .catch((e) => setError(e.message));
+    getFeedback().then(setData).catch((e) => setError(e.message));
   }, []);
 
-  if (error) return <p className="text-red-500">Error: {error}</p>;
-  if (!data) return <p className="text-gray-400">Cargando...</p>;
+  if (error) return <p className="text-red-500">{t("error")}: {error}</p>;
+  if (!data) return <p className="text-gray-400">{t("loading")}</p>;
 
   const { stats, data: entries } = data;
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-800 mb-2">Feedback</h2>
+      <h2 className="text-2xl font-bold text-gray-800 mb-2">{t("feedback_title")}</h2>
       <p className="text-gray-500 text-sm mb-6">
-        {stats.total_ratings} valoraciones · Promedio: {stats.average_rating || "N/A"}/5
+        {stats.total_ratings} {t("feedback_ratings")} · {t("feedback_avg")}: {stats.average_rating || "N/A"}/5
       </p>
 
       <div className="flex flex-col gap-3">
@@ -46,9 +46,8 @@ export default function Feedback() {
             )}
           </div>
         ))}
-
         {entries.length === 0 && (
-          <p className="text-gray-400 text-sm">No hay valoraciones aún.</p>
+          <p className="text-gray-400 text-sm">{t("feedback_none")}</p>
         )}
       </div>
     </div>

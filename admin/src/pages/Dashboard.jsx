@@ -1,31 +1,31 @@
 import { useEffect, useState } from "react";
 import { getDashboard } from "../api";
+import { useLang } from "../context/LangContext";
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  const { t } = useLang();
 
   useEffect(() => {
-    getDashboard()
-      .then(setData)
-      .catch((e) => setError(e.message));
+    getDashboard().then(setData).catch((e) => setError(e.message));
   }, []);
 
-  if (error) return <p className="text-red-500">Error: {error}</p>;
-  if (!data) return <p className="text-gray-400">Cargando...</p>;
+  if (error) return <p className="text-red-500">{t("error")}: {error}</p>;
+  if (!data) return <p className="text-gray-400">{t("loading")}</p>;
 
   const stats = [
-    { label: "Total consultas", value: data.total_queries, icon: "💬" },
-    { label: "Usuarios", value: data.total_users, icon: "👥" },
-    { label: "Documentos", value: `${data.indexed_documents}/${data.total_documents}`, icon: "📄" },
-    { label: "Cultivos", value: data.total_crops, icon: "🌿" },
-    { label: "Valoraciones", value: data.feedback.total_ratings, icon: "⭐" },
-    { label: "Satisfacción", value: data.feedback.average_rating ? `${data.feedback.average_rating}/5` : "N/A", icon: "📊" },
+    { label: t("dash_total_queries"), value: data.total_queries, icon: "💬" },
+    { label: t("dash_users"), value: data.total_users, icon: "👥" },
+    { label: t("dash_documents"), value: `${data.indexed_documents}/${data.total_documents}`, icon: "📄" },
+    { label: t("dash_crops"), value: data.total_crops, icon: "🌿" },
+    { label: t("dash_ratings"), value: data.feedback.total_ratings, icon: "⭐" },
+    { label: t("dash_satisfaction"), value: data.feedback.average_rating ? `${data.feedback.average_rating}/5` : "N/A", icon: "📊" },
   ];
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">Dashboard</h2>
+      <h2 className="text-2xl font-bold text-gray-800 mb-6">{t("dash_title")}</h2>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {stats.map((s) => (
           <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-5">
@@ -40,7 +40,7 @@ export default function Dashboard() {
 
       {data.feedback.total_ratings > 0 && (
         <div className="mt-8 bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="text-lg font-semibold text-gray-700 mb-4">Distribución de valoraciones</h3>
+          <h3 className="text-lg font-semibold text-gray-700 mb-4">{t("dash_distribution")}</h3>
           <div className="flex items-end gap-4 h-32">
             {[1, 2, 3, 4, 5].map((star) => {
               const count = data.feedback.distribution[star] || 0;

@@ -1,24 +1,24 @@
 import { useEffect, useState } from "react";
 import { getDocuments, uploadDocument, triggerReindex, createCrop } from "../api";
+import { useLang } from "../context/LangContext";
 
 export default function Documents() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState(null);
+  const [selectedCrop, setSelectedCrop] = useState("");
+  const [selectedFile, setSelectedFile] = useState(null);
   const [reindexing, setReindexing] = useState(false);
   const [reindexMsg, setReindexMsg] = useState(null);
   const [newCropName, setNewCropName] = useState("");
   const [newCropLabel, setNewCropLabel] = useState("");
   const [creatingCrop, setCreatingCrop] = useState(false);
   const [cropMsg, setCropMsg] = useState(null);
-  const [selectedCrop, setSelectedCrop] = useState("");
-  const [selectedFile, setSelectedFile] = useState(null);
+  const { t } = useLang();
 
   const loadData = () => {
-    getDocuments()
-      .then(setData)
-      .catch((e) => setError(e.message));
+    getDocuments().then(setData).catch((e) => setError(e.message));
   };
 
   useEffect(loadData, []);
@@ -70,22 +70,22 @@ export default function Documents() {
     }
   };
 
-  if (error) return <p className="text-red-500">Error: {error}</p>;
-  if (!data) return <p className="text-gray-400">Cargando...</p>;
+  if (error) return <p className="text-red-500">{t("error")}: {error}</p>;
+  if (!data) return <p className="text-gray-400">{t("loading")}</p>;
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">Documentos</h2>
+      <h2 className="text-2xl font-bold text-gray-800 mb-6">{t("docs_title")}</h2>
 
       <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-        <h3 className="text-lg font-semibold text-gray-700 mb-4">Subir nuevo documento</h3>
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">{t("docs_upload_title")}</h3>
         <div className="flex items-center gap-4">
           <select
             value={selectedCrop}
             onChange={(e) => setSelectedCrop(e.target.value)}
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
           >
-            <option value="">Seleccionar cultivo...</option>
+            <option value="">{t("docs_select_crop")}</option>
             {data.crops.map((c) => (
               <option key={c.name} value={c.name}>
                 {c.label} ({c.name})
@@ -103,7 +103,7 @@ export default function Documents() {
             disabled={uploading || !selectedCrop || !selectedFile}
             className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {uploading ? "Subiendo..." : "Subir PDF"}
+            {uploading ? t("docs_uploading") : t("docs_upload_button")}
           </button>
         </div>
         {uploadMsg && (
@@ -112,18 +112,16 @@ export default function Documents() {
           </p>
         )}
       </div>
-      
+
       <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-        <h3 className="text-lg font-semibold text-gray-700 mb-4">Reindexación</h3>
-        <p className="text-sm text-gray-500 mb-4">
-          Procesa documentos nuevos y los agrega al índice de búsqueda sin reindexar los existentes.
-        </p>
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">{t("docs_reindex_title")}</h3>
+        <p className="text-sm text-gray-500 mb-4">{t("docs_reindex_desc")}</p>
         <button
           onClick={handleReindex}
           disabled={reindexing}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {reindexing ? "Indexando..." : "🔄 Ejecutar reindexación"}
+          {reindexing ? t("docs_reindexing") : t("docs_reindex_button")}
         </button>
         {reindexMsg && (
           <p className={`mt-3 text-sm ${reindexMsg.ok ? "text-green-600" : "text-red-500"}`}>
@@ -133,18 +131,18 @@ export default function Documents() {
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-        <h3 className="text-lg font-semibold text-gray-700 mb-4">Agregar nuevo cultivo</h3>
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">{t("docs_add_crop_title")}</h3>
         <div className="flex items-center gap-4">
           <input
             type="text"
-            placeholder="Nombre en inglés (ej: tomato)"
+            placeholder={t("docs_crop_name_placeholder")}
             value={newCropName}
             onChange={(e) => setNewCropName(e.target.value)}
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm flex-1"
           />
           <input
             type="text"
-            placeholder="Etiqueta en español (ej: tomate)"
+            placeholder={t("docs_crop_label_placeholder")}
             value={newCropLabel}
             onChange={(e) => setNewCropLabel(e.target.value)}
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm flex-1"
@@ -154,7 +152,7 @@ export default function Documents() {
             disabled={creatingCrop || !newCropName || !newCropLabel}
             className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {creatingCrop ? "Creando..." : "🌿 Crear cultivo"}
+            {creatingCrop ? t("docs_creating_crop") : t("docs_create_crop")}
           </button>
         </div>
         {cropMsg && (
@@ -168,10 +166,10 @@ export default function Documents() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th className="text-left px-4 py-3 text-gray-500 font-medium">Archivo</th>
-              <th className="text-left px-4 py-3 text-gray-500 font-medium">Cultivo</th>
-              <th className="text-center px-4 py-3 text-gray-500 font-medium">Indexado</th>
-              <th className="text-left px-4 py-3 text-gray-500 font-medium">Fecha</th>
+              <th className="text-left px-4 py-3 text-gray-500 font-medium">{t("docs_col_file")}</th>
+              <th className="text-left px-4 py-3 text-gray-500 font-medium">{t("docs_col_crop")}</th>
+              <th className="text-center px-4 py-3 text-gray-500 font-medium">{t("docs_col_indexed")}</th>
+              <th className="text-left px-4 py-3 text-gray-500 font-medium">{t("docs_col_date")}</th>
             </tr>
           </thead>
           <tbody>
