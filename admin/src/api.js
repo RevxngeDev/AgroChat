@@ -1,12 +1,41 @@
 const API_URL = "http://localhost:8000";
-const API_KEY = "agrochat-admin-2026";
+
+function getApiKey() {
+  return sessionStorage.getItem("admin_api_key") || "";
+}
+
+export function setApiKey(key) {
+  sessionStorage.setItem("admin_api_key", key);
+}
+
+export function clearApiKey() {
+  sessionStorage.removeItem("admin_api_key");
+}
+
+export function isAuthenticated() {
+  return !!sessionStorage.getItem("admin_api_key");
+}
 
 async function request(endpoint) {
   const res = await fetch(`${API_URL}${endpoint}`, {
-    headers: { "x-api-key": API_KEY },
+    headers: { "x-api-key": getApiKey() },
   });
+  if (res.status === 401) {
+    clearApiKey();
+    window.location.href = "/login";
+    throw new Error("Unauthorized");
+  }
   if (!res.ok) throw new Error(`API error: ${res.status}`);
   return res.json();
+}
+
+export async function validateLogin(key) {
+  const res = await fetch(`${API_URL}/admin/dashboard`, {
+    headers: { "x-api-key": key },
+  });
+  if (res.status === 401) throw new Error("Invalid API key");
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return true;
 }
 
 export async function getDashboard() {
@@ -32,9 +61,14 @@ export async function uploadDocument(crop, file) {
 
   const res = await fetch(`${API_URL}/admin/documents/upload`, {
     method: "POST",
-    headers: { "x-api-key": API_KEY },
+    headers: { "x-api-key": getApiKey() },
     body: formData,
   });
+  if (res.status === 401) {
+    clearApiKey();
+    window.location.href = "/login";
+    throw new Error("Unauthorized");
+  }
   if (!res.ok) {
     const err = await res.json();
     throw new Error(err.detail || "Upload failed");
@@ -45,8 +79,13 @@ export async function uploadDocument(crop, file) {
 export async function triggerReindex() {
   const res = await fetch(`${API_URL}/admin/reindex`, {
     method: "POST",
-    headers: { "x-api-key": API_KEY },
+    headers: { "x-api-key": getApiKey() },
   });
+  if (res.status === 401) {
+    clearApiKey();
+    window.location.href = "/login";
+    throw new Error("Unauthorized");
+  }
   if (!res.ok) {
     const err = await res.json();
     throw new Error(err.detail || "Reindex failed");
@@ -61,12 +100,25 @@ export async function createCrop(name, label) {
 
   const res = await fetch(`${API_URL}/admin/crops`, {
     method: "POST",
-    headers: { "x-api-key": API_KEY },
+    headers: { "x-api-key": getApiKey() },
     body: formData,
   });
+  if (res.status === 401) {
+    clearApiKey();
+    window.location.href = "/login";
+    throw new Error("Unauthorized");
+  }
   if (!res.ok) {
     const err = await res.json();
     throw new Error(err.detail || "Failed to create crop");
   }
   return res.json();
+}
+
+export async function getAnalytics() {
+  return request("/admin/analytics");
+}
+
+export async function getEvalDataset() {
+  return request("/admin/analytics/eval-dataset");
 }

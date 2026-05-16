@@ -12,12 +12,14 @@ from src import config
 from src.db.supabase_client import (
     create_crop,
     get_all_crops,
-    get_all_crops,
     get_documents_with_crops,
     get_feedback_list,
     get_feedback_stats,
+    get_feedback_with_queries,
+    get_daily_stats,
     get_query_logs,
     get_query_logs_count,
+    get_query_logs_with_feedback,
     get_users_count,
     get_crop_by_name,
     get_unindexed_documents,
@@ -252,3 +254,139 @@ def add_crop(
     except Exception as e:
         logger.exception("Failed to create crop: %s", e)
         raise HTTPException(status_code=500, detail=f"Failed to create crop: {e}")
+    
+@router.get("/analytics")
+def get_analytics(x_api_key: str | None = Header(default=None)) -> dict:
+    _check_admin_key(x_api_key)
+
+    import json
+    from collections import defaultdict
+
+    # Get feedback with query details
+    feedback_entries = get_feedback_with_queries()
+
+    # Get daily query data
+    daily_data = get_daily_stats(days=30)
+
+    # ── Metrics by crop ──
+    crop_stats = defaultdict(lambda: {"queries": 0, "total_rating": 0, "ratings_count": 0, "total_time": 0})
+
+    for entry in feedback_entries:
+        ql = entry.get("query_logs")
+        if not ql:
+            continue
+
+        sources_raw = ql.get("sources", "[]")
+        if isinstance(sources_raw, str):
+            try:
+                sources = json.loads(sources_raw)
+            except json.JSONDecodeError:
+                sources = []
+        else:
+            sources = sources_raw
+
+        crops_in_response = set()
+        for src in sources:
+            crop_name = src.get("crop", "unknown")
+            crops_in_response.add(crop_name)
+
+        for crop_name in crops_in_response:
+            crop_stats[crop_name]["queries"] += 1
+            crop_stats[crop_name]["total_rating"] += entry.get("rating", 0)
+            crop_stats[crop_name]["ratings_count"] += 1
+            crop_stats[crop_name]["total_time"] += float(ql.get("elapsed_sec", 0))
+
+    crop_metrics = []
+    for crop_name, stats in sorted(crop_stats.items()):
+        avg_rating = round(stats["total_rating"] / stats["ratings_count"], 2) if stats["ratings_count"] > 0 else 0
+        avg_time = round(stats["total_time"] / stats["queries"], 2) if stats["queries"] > 0 else 0
+        crop_metrics.append({
+            "crop": crop_name,
+            "queries": stats["queries"],
+            "avg_rating": avg_rating,
+            "avg_time": avg_time,
+        })
+
+    # ── Low-rated responses (alerts) ──
+    low_rated = [
+        {
+            "question": e["query_logs"]["question"],
+            "answer": e["query_logs"]["answer"][:200],
+            "rating": e["rating"],
+            "lang": e["query_logs"].get("lang", "es"),
+            "date": e.get("created_at"),
+        }
+        for e in feedback_entries
+        if e.get("rating", 5) <= 2 and e.get("query_logs")
+    ]
+
+    # ── Daily query count for trend ──
+    daily_counts = defaultdict(lambda: {"count": 0, "total_time": 0})
+    for log in daily_data:
+        day = log["created_at"][:10]
+        daily_counts[day]["count"] += 1
+        daily_counts[day]["total_time"] += float(log.get("elapsed_sec", 0))
+
+    daily_trend = [
+        {
+            "date": day,
+            "queries": stats["count"],
+            "avg_time": round(stats["total_time"] / stats["count"], 2) if stats["count"] > 0 else 0,
+        }
+        for day, stats in sorted(daily_counts.items())
+    ]
+
+    # ── Language distribution ──
+    lang_counts = defaultdict(int)
+    for log in daily_data:
+        lang_counts[log.get("lang", "es")] += 1
+
+    return {
+        "crop_metrics": crop_metrics,
+        "low_rated": low_rated,
+        "daily_trend": daily_trend,
+        "lang_distribution": dict(lang_counts),
+    }
+
+
+@router.get("/analytics/eval-dataset")
+def export_eval_dataset(x_api_key: str | None = Header(default=None)) -> dict:
+    _check_admin_key(x_api_key)
+
+    feedback_entries = get_feedback_with_queries()
+
+    good_responses = []
+    bad_responses = []
+
+    for entry in feedback_entries:
+        ql = entry.get("query_logs")
+        if not ql:
+            continue
+
+        item = {
+            "question": ql["question"],
+            "answer": ql["answer"],
+            "rating": entry["rating"],
+            "model": ql.get("model"),
+            "lang": ql.get("lang"),
+            "date": entry.get("created_at"),
+        }
+
+        if entry["rating"] >= 4:
+            good_responses.append(item)
+        elif entry["rating"] <= 2:
+            bad_responses.append(item)
+
+    return {
+        "total_feedback": len(feedback_entries),
+        "good_responses": {
+            "count": len(good_responses),
+            "description": "Responses rated 4-5 stars — confirmed good quality",
+            "data": good_responses,
+        },
+        "bad_responses": {
+            "count": len(bad_responses),
+            "description": "Responses rated 1-2 stars — need improvement",
+            "data": bad_responses,
+        },
+    }

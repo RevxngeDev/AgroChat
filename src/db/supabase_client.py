@@ -350,3 +350,45 @@ def get_crop_folders() -> dict[str, str]:
     """
     crops = get_all_crops()
     return {crop["name"]: crop["label"] for crop in crops}
+
+# ── Admin: Analytics ──
+
+def get_query_logs_with_feedback(limit: int = 200) -> list[dict]:
+    """Fetch query logs with their feedback ratings."""
+    response = (
+        get_client()
+        .table("query_logs")
+        .select("*, feedback(rating)")
+        .order("created_at", desc=True)
+        .range(0, limit - 1)
+        .execute()
+    )
+    return response.data
+
+
+def get_daily_stats(days: int = 30) -> list[dict]:
+    """Fetch query logs for the last N days for trend analysis."""
+    from datetime import timedelta
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+
+    response = (
+        get_client()
+        .table("query_logs")
+        .select("id, created_at, elapsed_sec, lang, chunks_found, sources")
+        .gte("created_at", since)
+        .order("created_at", desc=True)
+        .execute()
+    )
+    return response.data
+
+
+def get_feedback_with_queries() -> list[dict]:
+    """Fetch all feedback with full query info for analysis."""
+    response = (
+        get_client()
+        .table("feedback")
+        .select("*, query_logs(id, question, answer, sources, model, lang, elapsed_sec, chunks_found, created_at)")
+        .order("created_at", desc=True)
+        .execute()
+    )
+    return response.data

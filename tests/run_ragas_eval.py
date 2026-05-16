@@ -21,9 +21,9 @@ from openai import OpenAI
 from ragas.llms import llm_factory
 
 from src import config
-from src.indexer import load_index
-from src.query_normalizer import normalize_query_for_retrieval
-from src.retriever import retrieve
+from src.core.indexer import load_index
+from src.core.query_normalizer import normalize_query_for_retrieval
+from src.core.retriever import retrieve
 from src.services.query_service import run_query
 
 console = Console()
